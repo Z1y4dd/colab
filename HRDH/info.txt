@@ -1,0 +1,386 @@
+HRDH-697
+lab - 14889.2 - 14938.5
+
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_697_0\8375\WL\Field\Bottom_Section\Field\Deliverables\HRDH_697_0_09JAN2012_ZDL-CN-DSL_ML_BA.dlis"
+15k-19k
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_697_0\12\WL\Field\Deliverables\HRDH_697_0_15OCT2011_ZDL1-ZDL2-CN-DSL-GR_ML_BA.dlis"
+11k-14.5k
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_697_0\12\WL\Field\Deliverables\HRDH_697_0_15OCT2011_ZDL1-ZDL2-CN-DSL-GR_RP_BA.dlis"
+11000-11400
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_697_0\12\WL\Field\FJA\HRDH_697_0_17OCT2011_ZDL-ZDL-CN-DSL_ML_BA.dlis"
+10500-14500
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_697_0\12\WL\Field\FJA\HRDH_697_0_17OCT2011_ZDL-ZDL-CN-DSL_RPT_BA.dlis"
+11200-11400
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_697_0\8375\WL\Field\Top_Section\Field\FJA\GSLAM\HRDH_697_0_27OCT2011_ZDL-CNC-DSL-GR-CAL_ML_BA.dlis"
+14516.000000  - 14752.500000  
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_697_0\8375\WL\Field\Top_Section\Field\Deliverables\HRDH_697_0_27OCT2011_ZDL-CN-DSL-GR_ML_BA.dlis"
+14634.250000  - 14752.500000
+
+HRDH-1111
+lab
+13089.5-13237.2
+----------------
+HRDH_1119_0
+LAB 10742.5-10866.5
+HRDH_1119_0\8375\WL\Field\Deliverables
+LOG ML-10900-11600 AND RP-11250-11550
+--------
+HRDH_1119
+LAB
+10742.5 - 10866.5
+
+HRDH_1119_0\8375\WL\Field\FJA\HRDH_1119_0_29MAY2012_ZDL-CN-DSL_RL_BA.dlis"
+11250-11550
+HRDH_1119_0\8375\WL\Field\Deliverables\HRDH_1119_0_29MAY2012_ZDL-CN-DSL_RP_BA.dlis"
+11250-11550
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1119_0\8375\WL\Field\Deliverables\HRDH_1119_0_29MAY2012_ZDL-CN-DSL_ML_BA.dlis"
+10900-11600
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1119_0\8375\WL\Field\FJA\HRDH_1119_0_29MAY2012_ZDL-CN-DSL_ML_BA.dlis"
+10900-11600
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1119_0\1200\OH\WL\Field\FJA\HRDH_1119_0_21MAY2012_ZDL-CN-DSL_RL_BA.dlis"
+9050-90300
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1119_0\1200\OH\WL\Field\FJA\HRDH_1119_0_21MAY2012_ZDL-CN-DSL_ML_BA.dlis"
+9000-11000
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1119_0\1200\OH\WL\Field\Deliverables\HRDH_1119_0_21MAY2012_ZDL-CN-DSL_RP_BA.dlis"
+9050-9300
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1119_0\1200\OH\WL\Field\Deliverables\HRDH_1119_0_21MAY2012_ZDL-CN-DSL_ML_BA.dlis"
+9000-11000
+-------------
+HRDH_1744_0
+NODSL
+
+===============
+HRDH_1867
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1867_0\5875\WL\Geoscience\LogEdit\Project\HRDH_1867_0_578_LogEdit\HRDH_1867_0_01FEB2017_ZDL_CN_DSL_GR_ML_BAT.dlis"
+14250-14750
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1867_0\5875\WL\Field\Delv_Frpm_Petrolink\R2\HRDH_1867_0_01FEB2017_ZDL_CN_DSL_GR_ML_BAT.dlis"
+14250-14750
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1867_0\5875\WL\Field\Deliverables\RUN2\DSL_Deliverables\HRDH_1867_0_01FEB_2017_DSL_GR_BAT.dlis"
+14400-15800
+
+
+
+----
+ 
+
+Name
+
+Units
+
+Description
+
+0
+
+BIT
+
+in
+
+Bit size
+
+1
+
+BVOL
+
+ft3
+
+Borehole volume
+
+2
+
+CAL
+
+in
+
+Caliper
+
+3
+
+CALZ
+
+in
+
+ 
+
+4
+
+CHT
+
+lbf
+
+Cable head tension
+
+5
+
+CN
+
+pu
+
+Compensated neutron porosity
+
+6
+
+CNC
+
+pu
+
+Borehole size corrected compensated neutron porosity
+
+7
+
+CVOL
+
+ft3
+
+Cement volume
+
+8
+
+GR
+
+gAPI
+
+Gamma ray
+
+9
+
+GRSL
+
+gAPI
+
+Gamma ray from 1329 spectrum
+
+10
+
+HRD1
+
+ 
+
+Long space spectrum count rate 140-200 keV
+
+11
+
+HRD2
+
+ 
+
+Long space spectrum count rate 200-540 keV
+
+12
+
+K
+
+%
+
+Potassium content
+
+13
+
+KTH
+
+gAPI
+
+Stripped potassium-thorium
+
+14
+
+LSN
+
+1/s
+
+Long space neutron
+
+15
+
+PE
+
+b/e
+
+Photo electric cross-section
+
+16
+
+QPKS
+
+ 
+
+Number of peaks found
+
+17
+
+RTHK
+
+ 
+
+Ratio of thorium to potassium
+
+18
+
+RTHU
+
+ 
+
+Ratio of thorium to uranium
+
+19
+
+RUK
+
+ 
+
+Ratio of uranium to potassium
+
+20
+
+SFT2
+
+ 
+
+Long space spectrum count rate 100-140 keV
+
+21
+
+SHR
+
+ 
+
+Soft to hard count rate ratio (SOFT/HRD2)
+
+22
+
+SLGN
+
+ 
+
+Gain value
+
+23
+
+SLSP
+
+1/s
+
+SL spectrum channels 1-254 (subset 0)
+
+24
+
+SLSPQ0
+
+ 
+
+SL spectrum channels 1-254 (subset 0)
+
+25
+
+SLTM
+
+ms
+
+Delta elapsed time
+
+26
+
+SPD
+
+ft/min
+
+Speed
+
+27
+
+SSD
+
+ 
+
+Short space count rate
+
+28
+
+SSN
+
+1/s
+
+Short space count rate
+
+29
+
+TEN
+
+lbf
+
+Differential tension
+
+30
+
+TH
+
+ppm
+
+Thorium concentration
+
+31
+
+TTEN
+
+lbf
+
+Total tension
+
+32
+
+U
+
+ppm
+
+Uranium content
+
+33
+
+WTBH
+
+degF
+
+Temperature of borehole
+
+34
+
+ZCOR
+
+g/cm3
+
+Density correction
+
+35
+
+ZDEN
+
+g/cm3
+
+Formation bulk density
+
+36
+
+ZDNC
+
+g/cm3
+
+Borehole size/mud weight corrected density
+
+37
+
+TDEP
+
+ft
+
+0.250000 ft frame 0 depth
+
+There are 38 available logs
+--
+
+
+
+
+
+
+
+
+
