@@ -59,23 +59,14 @@ HRDH_1867
 14400-15800
 
 
+well_name_0_09JAN2012_ZDL-CN-DSL_ML_BA.dlis
+│     │        │     │    │   └─ BA   ← “Basic ASCII” export variant
+│     │        │     │    └─ ML   ← Machine-log (raw) version
+│     │        │     └─ DSL  ← Density log curve
+│     │        └─ CN   ← Compensated Neutron porosity
+│     └─ ZDL  ← Gamma-ray curve mnemonic
+└─ 09JAN2012  ← Acquisition date
 
-----
- '''What it means:
-📍 SAMPLING DENSITY:
-
-Lab samples: 14.5 per 100 ft = You have about 14-15 lab samples every 100 feet
-Log samples: 400.1 per 100 ft = You have about 400 log samples every 100 feet
-Why this matters:
-Lab Sampling (14.5 per 100 ft):
-Spacing: ~7 feet between samples (100 ÷ 14.5 ≈ 7 ft)
-Assessment: This is reasonable for lab data - typical for core/cuttings analysis
-Cost consideration: Lab analysis is expensive, so sparse sampling is normal
-Log Sampling (400.1 per 100 ft):
-Spacing: ~0.25 feet between samples (100 ÷ 400 ≈ 0.25 ft = 3 inches)
-Assessment: This is excellent - very high resolution
-Standard: Typical for modern well logs (6-inch sampling intervals)'''
-=============================
 Name
 
 Units
