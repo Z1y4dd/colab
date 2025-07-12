@@ -306,7 +306,7 @@ def match_lab_to_log(log_df, lab_df, tol=0.1):
     Returns at most len(lab_df) matched pairs.
     Adds columns for Distance and Match_Type.
     """
-    print(f"\n🔧 FUNCTION START - INPUT VALIDATION:")
+    print(f"\nFUNCTION START - INPUT VALIDATION:")
     print(f"   • Log DataFrame shape: {log_df.shape}")
     print(f"   • Lab DataFrame shape: {lab_df.shape}")
     
@@ -362,7 +362,7 @@ def match_lab_to_log(log_df, lab_df, tol=0.1):
         mask_large = np.isfinite(dists_large)
         
         if mask_large.sum() > 0:
-            print(f"\n🔍 CLOSEST MATCHES (within 1.0 ft):")
+            print(f"\nCLOSEST MATCHES (within 1.0 ft):")
             for i in range(min(5, mask_large.sum())):
                 match_idx = np.where(mask_large)[0][i]
                 lab_depth = lab_depths[match_idx][0]
