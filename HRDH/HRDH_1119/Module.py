@@ -4,6 +4,7 @@ import pandas as pd
 from pathlib import Path
 import traceback
 import numpy as np
+from scipy.spatial import cKDTree
 
 
 def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
@@ -335,7 +336,6 @@ def match_lab_to_log(log_df, lab_df, tol=0.1):
     # FIXED: Check for finite distances (successful matches)
     mask = np.isfinite(dists)
     
-    print(f"\n🔍 DEBUG INFO:")
     print(f"   • Lab depths range: {lab_depths.min():.2f} - {lab_depths.max():.2f}")
     print(f"   • Log depths range: {log_depths.min():.2f} - {log_depths.max():.2f}")
     print(f"   • Tolerance: {tol} ft")
@@ -346,7 +346,7 @@ def match_lab_to_log(log_df, lab_df, tol=0.1):
         print(f"   • Max distance: {dists[mask].max():.2f} ft")
         
         # DETAILED MATCH VERIFICATION
-        print(f"\n🔍 DETAILED MATCH VERIFICATION:")
+        print(f"\nMATCH VERIFICATION:")
         for i in range(min(24, mask.sum())):
             match_idx = np.where(mask)[0][i]
             lab_depth = lab_depths[match_idx][0]
@@ -403,9 +403,9 @@ def match_lab_to_log(log_df, lab_df, tol=0.1):
     joined_df['Match_Type'] = np.where(joined_df['Distance'] == 0, 'Exact', 'Near')
     
     # VERIFICATION: Show actual matches
-    print(f"\n✅ FINAL VERIFICATION - First 5 matches:")
-    for i in range(min(5, len(joined_df))):
-        row = joined_df.iloc[i]
-        print(f"   Lab: {row['Lab_Depth']:.2f} → Log: {row['Log_Depth']:.2f} (Δ{row['Distance']:.2f} ft)")
+    # print(f"\n✅ FINAL VERIFICATION - First 5 matches:")
+    # for i in range(min(5, len(joined_df))):
+    #     row = joined_df.iloc[i]
+    #     print(f"   Lab: {row['Lab_Depth']:.2f} → Log: {row['Log_Depth']:.2f} (Δ{row['Distance']:.2f} ft)")
     
     return joined_df
