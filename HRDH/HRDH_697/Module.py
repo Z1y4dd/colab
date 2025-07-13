@@ -5,7 +5,6 @@ from pathlib import Path
 import traceback
 import numpy as np
 from scipy.spatial import cKDTree
-import glob
 
 
 def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
@@ -301,9 +300,6 @@ def load_and_validate_dlis(path, **kwargs):
         return pd.DataFrame()
 
 def load_full_dsl_log(
-    
-    
-    
     root_dir: str,
     channels: list[str] | None = None,
     frame_idx: int = 0,
@@ -457,8 +453,6 @@ def load_full_dsl_log(
     }
 
     return full_log, metadata
-
-
 
 def match_lab_to_log(log_df, lab_df, tol=0.1):
     """
