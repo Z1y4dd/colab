@@ -299,6 +299,160 @@ def load_and_validate_dlis(path, **kwargs):
         print(f"❌ Load and validation failed: {e}")
         return pd.DataFrame()
 
+def load_full_dsl_log(
+    root_dir: str,
+    channels: list[str] | None = None,
+    frame_idx: int = 0,
+    priority_folders: list[str] | None = None
+) -> tuple[pd.DataFrame, dict]:
+    """
+    Discover, filter, load, and concatenate DSL-based DLIS files into one continuous log.
+
+    Args:
+        root_dir: Root directory to search for .dlis files.
+        channels: List of curve mnemonics to extract (None => all).
+        frame_idx: Frame index to use for each DLIS.
+        priority_folders: Ordered list of folder names to prefer when duplicates exist.
+
+    Returns:
+        full_log: DataFrame indexed by depth with concatenated log curves.
+        metadata: Dictionary containing detailed loading information.
+    """
+    # 1. Discover all DLIS files
+    found_files = glob.glob(f"{root_dir}/**/*.dlis", recursive=True)
+    print(f"🔍 Found {len(found_files)} total DLIS files")
+
+    # 2. Filter to DSL files only
+    dsl_files = [f for f in found_files if "-DSL" in Path(f).stem]
+    print(f"📊 Found {len(dsl_files)} DSL-specific files")
+
+    if len(dsl_files) == 0:
+        print("❌ No DSL files found!")
+        return pd.DataFrame(), {"error": "No DSL files found"}
+
+    # 3. Group by file stem to find duplicates
+    stems = {}
+    for f in dsl_files:
+        stem = Path(f).stem
+        stems.setdefault(stem, []).append(f)
+
+    # 4. Select one file per stem based on priority_folders
+    selected_files = []
+    ignored_duplicates = []
+    if priority_folders is None:
+        priority_folders = ["Deliverables", "FJA"]
+
+    for stem, files in stems.items():
+        if len(files) > 1:
+            print(f"🔄 Multiple files found for {stem}: {len(files)} files")
+            
+        # pick highest-priority file
+        selected = None
+        for folder in priority_folders:
+            for f in files:
+                if folder in f:
+                    selected = f
+                    print(f"✅ Selected {Path(f).name} (priority: {folder})")
+                    break
+            if selected:
+                break
+        if not selected:
+            selected = files[0]
+            print(f"⚠️ No priority match for {stem}, using first file: {Path(selected).name}")
+            
+        selected_files.append(selected)
+        # record ignored duplicates
+        ignored_duplicates.extend([f for f in files if f != selected])
+
+    print(f"📁 Selected {len(selected_files)} files for loading")
+    print(f"🗑️ Ignored {len(ignored_duplicates)} duplicate files")
+
+    # 5. Load each selected file into a DataFrame - FIXED PARAMETER NAMES
+    dfs = []
+    load_meta = []
+    
+    for i, f in enumerate(selected_files):
+        try:
+            print(f"\n🔧 Loading file {i+1}/{len(selected_files)}: {Path(f).name}")
+            
+            # FIXED: Use correct parameter names matching your Module's dlis_to_df function
+            # Parameters: ['path', 'needed', 'frame_index', 'verbose']
+            df = dlis_to_df(
+                path=f, 
+                needed=channels,        # FIXED: Use 'needed' instead of 'channels'
+                frame_index=frame_idx,  # FIXED: Use 'frame_index' instead of 'frame_idx'
+                verbose=True            # FIXED: Add verbose parameter
+            )
+            
+            # Handle the case where your function might return tuple or just DataFrame
+            if isinstance(df, tuple):
+                df, meta = df
+                load_meta.append(meta)
+            else:
+                # If no metadata returned, create basic metadata
+                meta = {
+                    'path': f,
+                    'shape': df.shape,
+                    'columns': list(df.columns) if not df.empty else [],
+                    'depth_range': (df.index.min(), df.index.max()) if not df.empty else (None, None)
+                }
+                load_meta.append(meta)
+            
+            if not df.empty:
+                print(f"✅ Loaded: {df.shape[0]} samples × {df.shape[1]} channels")
+                print(f"   Depth range: {df.index.min():.1f} - {df.index.max():.1f} ft")
+                dfs.append(df)
+            else:
+                print(f"⚠️ Empty DataFrame returned for {Path(f).name}")
+                
+        except Exception as e:
+            print(f"❌ Error loading {Path(f).name}: {e}")
+            # Print more detailed error for debugging
+            import traceback
+            print(f"   Full error: {traceback.format_exc()}")
+            continue
+
+    # 6. Concatenate and deduplicate by depth index
+    if dfs:
+        print(f"\n🔗 Concatenating {len(dfs)} DataFrames...")
+        
+        # Concatenate with error handling
+        try:
+            full_log = pd.concat(dfs, sort=True).sort_index()
+            
+            # Check for depth duplicates
+            duplicates_before = full_log.index.duplicated().sum()
+            if duplicates_before > 0:
+                print(f"⚠️ Found {duplicates_before} duplicate depths, removing...")
+                full_log = full_log[~full_log.index.duplicated(keep='first')]
+                
+            print(f"✅ Final combined log: {full_log.shape[0]} samples × {full_log.shape[1]} channels")
+            print(f"   Combined depth range: {full_log.index.min():.1f} - {full_log.index.max():.1f} ft")
+            
+        except Exception as e:
+            print(f"❌ Error concatenating DataFrames: {e}")
+            full_log = pd.DataFrame()
+    else:
+        print("❌ No valid DataFrames to concatenate")
+        full_log = pd.DataFrame()
+
+    # 7. Compile metadata
+    metadata = {
+        "found_files": found_files,
+        "dsl_files": dsl_files,
+        "selected_files": selected_files,
+        "ignored_duplicates": ignored_duplicates,
+        "load_meta": load_meta,
+        "summary": {
+            "total_files_found": len(found_files),
+            "dsl_files_found": len(dsl_files),
+            "files_loaded": len(dfs),
+            "files_failed": len(selected_files) - len(dfs),
+            "final_shape": full_log.shape if not full_log.empty else (0, 0)
+        }
+    }
+
+    return full_log, metadata
 
 def match_lab_to_log(log_df, lab_df, tol=0.1):
     """
