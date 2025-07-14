@@ -1,0 +1,17 @@
+1804
+12900.0 - 14799.0 ft
+13060.0 - 13300.0 ft
+
+COMBINED 12900.0 TO - 14799.0
+
+lab
+
+Range: 14856.6 - 15019.8 ft
+
+= NO MATCHING
+
+two DLS files found 
+
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1804_1\5875\WL\FIELD\Run2\HRDH_1804_1_10JAN2022_ZDL-ZDL-CN-DSL_ML_BAT.dlis"
+
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1804_1\5875\WL\FIELD\Run2\HRDH_1804_1_10JAN2022_ZDL-ZDL-CN-DSL_RP_BAT.dlis"

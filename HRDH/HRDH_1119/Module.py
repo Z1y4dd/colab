@@ -1,4 +1,3 @@
-
 from dlisio import dlis
 import pandas as pd
 from pathlib import Path
@@ -114,13 +113,23 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
         channels = selected_frame.channels
         channel_names = [ch.name for ch in channels]
         
+        # Add dictionary to store channel descriptions
+        channel_descriptions = {}
+        
         vprint(f"✅ Found {len(channel_names)} channels:")
         
         # Show channel details
         for i, (ch, name) in enumerate(zip(channels, channel_names)):
             dimension = getattr(ch, 'dimension', 'Unknown')
             units = getattr(ch, 'units', 'Unknown')
-            vprint(f"   {i+1:2d}. {name:<15} | Dim: {dimension} | Units: {units}")
+            
+            # Extract long_name for better descriptions
+            long_name = getattr(ch, 'long_name', '')
+            if long_name:
+                channel_descriptions[name] = long_name
+                vprint(f"   {i+1:2d}. {name:<15} | {long_name:<30} | Dim: {dimension} | Units: {units}")
+            else:
+                vprint(f"   {i+1:2d}. {name:<15} | Dim: {dimension} | Units: {units}")
             
         # Check for depth channel
         depth_candidates = ['TDEP', 'DEPTH', 'DEPT', 'Depth', 'depth', 'MD', 'MEASURED_DEPTH']
@@ -134,6 +143,14 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
             vprint(f"✅ Depth channel found: {found_depth}")
         else:
             vprint(f"⚠️ No standard depth channel found. Available: {channel_names[:5]}...")
+        
+        # Store channel descriptions in metadata to return later
+        metadata = {
+            'channel_descriptions': channel_descriptions,
+            'channels': channels,
+            'channel_names': channel_names,
+            'depth_channel': found_depth
+        }
             
     except Exception as e:
         vprint(f"❌ Channel analysis failed: {e}")
@@ -301,9 +318,7 @@ def load_and_validate_dlis(path, **kwargs):
         return pd.DataFrame()
 
 def load_full_dsl_log(
-    
-    
-    
+
     root_dir: str,
     channels: list[str] | None = None,
     frame_idx: int = 0,
@@ -343,8 +358,9 @@ def load_full_dsl_log(
     # 4. Select one file per stem based on priority_folders
     selected_files = []
     ignored_duplicates = []
+
     if priority_folders is None:
-        priority_folders = ["Deliverables", "FJA"]
+        priority_folders = ["Deliverables"]
 
     for stem, files in stems.items():
         if len(files) > 1:
@@ -383,9 +399,9 @@ def load_full_dsl_log(
             # Parameters: ['path', 'needed', 'frame_index', 'verbose']
             df = dlis_to_df(
                 path=f, 
-                needed=channels,        # FIXED: Use 'needed' instead of 'channels'
-                frame_index=frame_idx,  # FIXED: Use 'frame_index' instead of 'frame_idx'
-                verbose=True            # FIXED: Add verbose parameter
+                needed=channels,        
+                frame_index=frame_idx,  
+                verbose=True            
             )
             
             # Handle the case where your function might return tuple or just DataFrame
@@ -404,7 +420,7 @@ def load_full_dsl_log(
             
             if not df.empty:
                 print(f"✅ Loaded: {df.shape[0]} samples × {df.shape[1]} channels")
-                print(f"   Depth range: {df.index.min():.1f} - {df.index.max():.1f} ft")
+                print(f"Depth range: {df.index.min():.1f} - {df.index.max():.1f} ft")
                 dfs.append(df)
             else:
                 print(f"⚠️ Empty DataFrame returned for {Path(f).name}")
@@ -458,8 +474,6 @@ def load_full_dsl_log(
 
     return full_log, metadata
 
-
-
 def match_lab_to_log(log_df, lab_df, tol=0.1):
     """
     For each lab depth, find the nearest log depth within `tol`.
@@ -467,14 +481,14 @@ def match_lab_to_log(log_df, lab_df, tol=0.1):
     Adds columns for Distance and Match_Type.
     """
     print(f"\nFUNCTION START - INPUT VALIDATION:")
-    print(f"   • Log DataFrame shape: {log_df.shape}")
-    print(f"   • Lab DataFrame shape: {lab_df.shape}")
+    print(f"Log DataFrame shape: {log_df.shape}")
+    print(f"Lab DataFrame shape: {lab_df.shape}")
     
     # Ensure unique indices
     log = log_df[~log_df.index.duplicated(keep='first')]
     lab = lab_df[~lab_df.index.duplicated(keep='first')]
     
-    print(f"   • After deduplication - Log: {len(log)}, Lab: {len(lab)}")
+    print(f"After deduplication - Log: {len(log)}, Lab: {len(lab)}")
     
     if len(log) == 0 or len(lab) == 0:
         print("❌ ERROR: Empty datasets after deduplication!")
@@ -496,14 +510,14 @@ def match_lab_to_log(log_df, lab_df, tol=0.1):
     # FIXED: Check for finite distances (successful matches)
     mask = np.isfinite(dists)
     
-    print(f"   • Lab depths range: {lab_depths.min():.2f} - {lab_depths.max():.2f}")
-    print(f"   • Log depths range: {log_depths.min():.2f} - {log_depths.max():.2f}")
-    print(f"   • Tolerance: {tol} ft")
-    print(f"   • Valid matches found: {mask.sum()}/{len(mask)}")
+    print(f"Lab depths range: {lab_depths.min():.2f} - {lab_depths.max():.2f}")
+    print(f"Log depths range: {log_depths.min():.2f} - {log_depths.max():.2f}")
+    print(f"Tolerance: {tol} ft")
+    print(f"Valid matches found: {mask.sum()}/{len(mask)}")
     
     if mask.sum() > 0:
-        print(f"   • Min distance: {dists[mask].min():.2f} ft")
-        print(f"   • Max distance: {dists[mask].max():.2f} ft")
+        print(f"Min distance: {dists[mask].min():.2f} ft")
+        print(f"Max distance: {dists[mask].max():.2f} ft")
         
         # DETAILED MATCH VERIFICATION
         print(f"\nMATCH VERIFICATION:")
@@ -540,7 +554,7 @@ def match_lab_to_log(log_df, lab_df, tol=0.1):
     matched_lab = lab.iloc[matched_lab_indices].reset_index()
     matched_log = log.iloc[matched_log_indices].reset_index()
     
-    print(f"   • Matched samples extracted: {len(matched_lab)} pairs")
+    print(f"Matched samples extracted: {len(matched_lab)} pairs")
     
     # Rename depth columns and add prefixes
     matched_lab = matched_lab.rename(columns={matched_lab.columns[0]: 'Lab_Depth'})
