@@ -793,3 +793,225 @@ def match_lab_to_log(log_df, lab_df, tol=0.1):
     #     print(f"   Lab: {row['Lab_Depth']:.2f} → Log: {row['Log_Depth']:.2f} (Δ{row['Distance']:.2f} ft)")
     
     return joined_df
+
+def load_dlis_files_from_list(
+    file_paths: list[str],
+    channels: list[str] | None = None,
+    frame_idx: int = 0,
+    concatenate: bool = True,
+    remove_duplicates: bool = True,
+    verbose: bool = True
+):
+    """
+    Load multiple DLIS files from a provided list of file paths.
+    
+    Args:
+        file_paths: List of absolute paths to DLIS files to load.
+        channels: List of curve mnemonics to extract (None => all).
+        frame_idx: Frame index to use for each DLIS file.
+        concatenate: If True, concatenate all DataFrames into one. If False, return list of DataFrames.
+        remove_duplicates: If True, remove duplicate depth indices when concatenating.
+        verbose: Whether to print detailed loading information.
+        
+    Returns:
+        If concatenate=True: (combined_df, metadata)
+        If concatenate=False: (list_of_dfs, metadata)
+        
+    Example:
+        # Load specific files
+        paths = [
+            "/path/to/file1.dlis",
+            "/path/to/file2.dlis", 
+            "/path/to/file3.dlis"
+        ]
+        df, meta = load_dlis_files_from_list(paths, channels=['GR', 'NPHI', 'RHOB'])
+    """
+    
+    def vprint(msg):
+        """Verbose print function"""
+        if verbose:
+            print(msg)
+    
+    vprint(f"🔍 LOADING {len(file_paths)} DLIS FILES FROM LIST")
+    vprint("=" * 50)
+    
+    # 1. Validate input file paths
+    vprint(f"\n📋 STEP 1: VALIDATING FILE PATHS")
+    vprint("-" * 30)
+    
+    valid_paths = []
+    invalid_paths = []
+    
+    for i, path in enumerate(file_paths):
+        try:
+            path_obj = Path(path)
+            if path_obj.exists():
+                if path_obj.suffix.lower() in ['.dlis', '.dls']:
+                    valid_paths.append(str(path_obj))
+                    size_mb = path_obj.stat().st_size / (1024 * 1024)
+                    vprint(f"✅ {i+1:2d}. {path_obj.name} ({size_mb:.1f} MB)")
+                else:
+                    invalid_paths.append((path, f"Invalid extension: {path_obj.suffix}"))
+                    vprint(f"⚠️ {i+1:2d}. {path_obj.name} - Invalid extension")
+            else:
+                invalid_paths.append((path, "File not found"))
+                vprint(f"❌ {i+1:2d}. {Path(path).name} - File not found")
+        except Exception as e:
+            invalid_paths.append((path, str(e)))
+            vprint(f"❌ {i+1:2d}. {Path(path).name} - Error: {e}")
+    
+    vprint(f"\n📊 VALIDATION SUMMARY:")
+    vprint(f"   • Valid files: {len(valid_paths)}")
+    vprint(f"   • Invalid files: {len(invalid_paths)}")
+    
+    if len(valid_paths) == 0:
+        vprint("❌ No valid DLIS files found!")
+        empty_metadata = {
+            "error": "No valid files",
+            "invalid_paths": invalid_paths,
+            "summary": {"files_processed": 0, "files_loaded": 0, "files_failed": len(file_paths)}
+        }
+        if concatenate:
+            return pd.DataFrame(), empty_metadata
+        else:
+            return [], empty_metadata
+    
+    # 2. Load each valid file
+    vprint(f"\n🔧 STEP 2: LOADING DLIS FILES")
+    vprint("-" * 30)
+    
+    dataframes = []
+    load_metadata = []
+    failed_loads = []
+    
+    for i, file_path in enumerate(valid_paths):
+        try:
+            vprint(f"\n📁 Loading file {i+1}/{len(valid_paths)}: {Path(file_path).name}")
+            
+            # Load using existing dlis_to_df function
+            df = dlis_to_df(
+                path=file_path,
+                needed=channels,
+                frame_index=frame_idx,
+                verbose=verbose
+            )
+            
+            if not df.empty:
+                dataframes.append(df)
+                
+                # Create metadata for this file
+                file_meta = {
+                    'path': file_path,
+                    'filename': Path(file_path).name,
+                    'shape': df.shape,
+                    'columns': list(df.columns),
+                    'depth_range': (df.index.min(), df.index.max()) if len(df) > 0 else (None, None),
+                    'memory_mb': df.memory_usage(deep=True).sum() / 1024**2
+                }
+                load_metadata.append(file_meta)
+                
+                vprint(f"✅ Success: {df.shape[0]} samples × {df.shape[1]} channels")
+                vprint(f"   Depth range: {df.index.min():.1f} - {df.index.max():.1f}")
+                vprint(f"   Memory: {file_meta['memory_mb']:.1f} MB")
+            else:
+                failed_loads.append((file_path, "Empty DataFrame returned"))
+                vprint(f"⚠️ Empty DataFrame returned")
+                
+        except Exception as e:
+            failed_loads.append((file_path, str(e)))
+            vprint(f"❌ Loading failed: {e}")
+            
+            # Print detailed error for debugging
+            if verbose:
+                import traceback
+                vprint(f"   Full error: {traceback.format_exc()}")
+    
+    vprint(f"\n📊 LOADING SUMMARY:")
+    vprint(f"   • Files processed: {len(valid_paths)}")
+    vprint(f"   • Successfully loaded: {len(dataframes)}")
+    vprint(f"   • Failed to load: {len(failed_loads)}")
+    
+    if len(dataframes) == 0:
+        vprint("❌ No files were successfully loaded!")
+        empty_metadata = {
+            "error": "No files loaded successfully",
+            "failed_loads": failed_loads,
+            "invalid_paths": invalid_paths,
+            "summary": {"files_processed": len(valid_paths), "files_loaded": 0, "files_failed": len(failed_loads)}
+        }
+        if concatenate:
+            return pd.DataFrame(), empty_metadata
+        else:
+            return [], empty_metadata
+    
+    # 3. Concatenate if requested
+    if concatenate:
+        vprint(f"\n🔗 STEP 3: CONCATENATING DATAFRAMES")
+        vprint("-" * 30)
+        
+        try:
+            # Show column information before concatenation
+            all_columns = set()
+            for df in dataframes:
+                all_columns.update(df.columns)
+            vprint(f"   • Unique columns across all files: {len(all_columns)}")
+            
+            # Concatenate all DataFrames
+            combined_df = pd.concat(dataframes, sort=True).sort_index()
+            vprint(f"   • Combined shape before deduplication: {combined_df.shape}")
+            
+            # Remove duplicates if requested
+            if remove_duplicates:
+                duplicates_before = combined_df.index.duplicated().sum()
+                if duplicates_before > 0:
+                    vprint(f"   • Found {duplicates_before} duplicate depths")
+                    combined_df = combined_df[~combined_df.index.duplicated(keep='first')]
+                    vprint(f"   • Removed duplicates, new shape: {combined_df.shape}")
+                else:
+                    vprint(f"   • No duplicate depths found")
+            
+            # Final statistics
+            total_memory = combined_df.memory_usage(deep=True).sum() / 1024**2
+            vprint(f"\n✅ CONCATENATION COMPLETE:")
+            vprint(f"   • Final shape: {combined_df.shape}")
+            vprint(f"   • Depth range: {combined_df.index.min():.1f} - {combined_df.index.max():.1f}")
+            vprint(f"   • Total memory: {total_memory:.1f} MB")
+            vprint(f"   • Columns: {list(combined_df.columns)}")
+            
+            result_df = combined_df
+            
+        except Exception as e:
+            vprint(f"❌ Concatenation failed: {e}")
+            result_df = pd.DataFrame()
+    else:
+        vprint(f"\n📦 Returning {len(dataframes)} separate DataFrames (concatenate=False)")
+        result_df = dataframes
+    
+    # 4. Compile comprehensive metadata
+    metadata = {
+        "input_paths": file_paths,
+        "valid_paths": valid_paths,
+        "invalid_paths": invalid_paths,
+        "failed_loads": failed_loads,
+        "load_metadata": load_metadata,
+        "concatenated": concatenate,
+        "duplicates_removed": remove_duplicates if concatenate else None,
+        "summary": {
+            "total_input_files": len(file_paths),
+            "valid_files": len(valid_paths),
+            "invalid_files": len(invalid_paths),
+            "files_loaded": len(dataframes),
+            "files_failed": len(failed_loads),
+            "final_shape": result_df.shape if concatenate and isinstance(result_df, pd.DataFrame) and not result_df.empty else None,
+            "total_memory_mb": sum(meta['memory_mb'] for meta in load_metadata)
+        }
+    }
+    
+    # Add channel information if available
+    if load_metadata:
+        all_channels = set()
+        for meta in load_metadata:
+            all_channels.update(meta['columns'])
+        metadata['all_channels_found'] = sorted(list(all_channels))
+    
+    return result_df, metadata
