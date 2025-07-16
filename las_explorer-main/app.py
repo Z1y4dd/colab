@@ -17,7 +17,7 @@ from io import StringIO
 local_css("style.css")
 
 
-@st.cache
+@st.cache_data
 def load_data(uploaded_file):
     if uploaded_file is not None:
         try:

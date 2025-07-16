@@ -4,6 +4,116 @@ lab
 
 "\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_697_0\8375\WL\Field\Bottom_Section\Field\Deliverables\HRDH_697_0_09JAN2012_ZDL-CN-DSL_ML_BA.dlis"
 14516.000000  - 14752.500000
+------------
+Logical File
+------------
+Description : LogicalFile(BATLAS.001)
+Frames      : 3
+Channels    : 36
+
+Known objects
+--
+FILE-HEADER : 1
+EQUIPMENT   : 16
+TOOL        : 9
+ZONE        : 15
+COMMENT     : 1
+PARAMETER   : 266
+FRAME       : 3
+CHANNEL     : 36
+ORIGIN      : 1
+
+Unknown objects
+--
+150-METADATA-TABLE            : 25
+150-CURVE-DESCRIPTION         : 24
+150-PRESENTATION-DESCRIPTION  : 1
+150-PROCESS                   : 33
+150-CURVE-HEADER-PARAMETER    : 5082
+150-CHANNEL-INFORMATION-TABLE : 4
+------
+Origin
+------
+name   : DEFINING_ORIGIN
+origin : 0
+copy   : 0
+
+Logical file ID          : BATLAS.001
+File set name and number : BATLAS / 51
+File number and type     : 1 / EXCHANGE
+
+Field                   : HARADH
+Well (id/name)          : None / HRDH_697_0
+Produced by (code/name) : 150 / ATLAS
+Produced for            : SAUDI ARAMCO
+Run number              : 2.00
+Created                 : 2012-01-11 10:27:11
+
+Created by              : eXpress/eclips, (version: Access-4.20)
+Other programs/services : Data Export
+3 frames
+Frames
+-----
+Frame
+-----
+name   : 0.500000B0
+origin : 0
+copy   : 0
+
+Channel indexing
+--
+Description      : BATLAS
+Indexed by       : BOREHOLE-DEPTH
+Index units      : ft
+Direction        : INCREASING
+Constant spacing : 0.5 [ft]
+Index channel    : Channel(TDEP)
+
+Channels
+--
+TDEP  BIT   CHT.I CN    CNC   GR    GRSL  HRD1  HRD2  K     KTH   LSN   PE
+QPKS  RTHK  RTHU  RUK   SFT2  SHR   SLGN  SLSP  SLTM  SSD   SSN   TH    U
+WTBH  ZCOR  ZDEN  ZDNC
+
+-----
+Frame
+-----
+name   : 0.250000B1
+origin : 0
+copy   : 0
+
+Channel indexing
+--
+Description      : BATLAS
+Indexed by       : BOREHOLE-DEPTH
+Index units      : ft
+Direction        : INCREASING
+Constant spacing : 0.25 [ft]
+Index channel    : Channel(TDEP)
+
+Channels
+--
+TDEP CAL  SPD  TEN
+
+-----
+Frame
+-----
+name   : 0.250000B2
+origin : 0
+copy   : 0
+
+Channel indexing
+--
+Description      : BATLAS
+Indexed by       : BOREHOLE-DEPTH
+Index units      : ft
+Direction        : INCREASING
+Constant spacing : 0.25 [ft]
+Index channel    : Channel(TDEP)
+
+Channels
+--
+TDEP WTBH
 "\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_697_0\8375\WL\Field\Top_Section\Field\Deliverables\HRDH_697_0_27OCT2011_ZDL-CN-DSL-GR_ML_BA.dlis"
 14634.250000  - 14752.500000
 "\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_697_0\12\WL\Field\Deliverables\HRDH_697_0_15OCT2011_ZDL1-ZDL2-CN-DSL-GR_ML_BA.dlis"
@@ -19,31 +129,42 @@ no dsl
 ============================================================
 HRDH-1119 (dsl dlis)
 Lab Range: 10742.5 - 10866.5 ft
-"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1119_0\8375\WL\Field\Deliverables\HRDH_1119_0_29MAY2012_ZDL-CN-DSL_RP_BA.dlis"
-"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1119_0\8375\WL\Field\Deliverables\HRDH_1119_0_29MAY2012_ZDL-CN-DSL_ML_BA.dlis"
+Log Range: 8936.8 - 11580.5 ft
 
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1119_0\8375\WL\Field\Deliverables\HRDH_1119_0_29MAY2012_ZDL-CN-DSL_RP_BA.dlis"
+11228.8 - 11540.8
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1119_0\8375\WL\Field\Deliverables\HRDH_1119_0_29MAY2012_ZDL-CN-DSL_ML_BA.dlis"
+10842.75 - 11580.50
 "\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1119_0\1200\OH\WL\Field\Deliverables\HRDH_1119_0_21MAY2012_ZDL-CN-DSL_RP_BA.dlis"
+9028.25 - 9299.25
 "\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1119_0\1200\OH\WL\Field\Deliverables\HRDH_1119_0_21MAY2012_ZDL-CN-DSL_ML_BA.dlis"
+8936.75 - 11216.75
 
 ============================================================
 HRDH-1230 
 lab data but no log
 ============================================================
 HRDH_1744_0
-NODSL
-"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1744_0\DELIVRABLES\HRDH_1744_0_08MAR2013_SBT_ML_BA.dlis"
+NODSL but there's lab data
+
 ============================================================
-HRDH_1804 (dsl dlis)
+HRDH_1804 (dsl dlis) (not overlap)
+Lab Range: 14856.6 - 15019.8 ft
+
+
 "\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1804_0\8375\WL\Field\Final_Deliverables\RUN2\OLD\HRDH_1804_0_23DEC17_DSL-ZDL-CN_ML_BA.dlis"
 "\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1804_0\8375\WL\Field\Final_Deliverables\RUN2\HRDH_1804_0_23DEC17_ZDL-CN-DSL-GR_ML_BAT.dlis"
-
+lab range: 10816.75 - 14689.00
 (DSL LAS)
 "\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1804_0\8375\WL\Field\Final_Deliverables\RUN2\HRDH_1804_0_23DEC17_DSL-ZDL-CN_ML_BA.las"
-
+Starting depth (STRT): 10850.0
+Ending depth (STOP): 14704.0
 ============================================================
 HRDH_1867 (dsl dlis)
+Lab Range: 14859.0 - 15025.0 ft
+
 "\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1867_0\5875\WL\Field\Deliverables\RUN2\DSL_Deliverables\HRDH_1867_0_01FEB_2017_DSL_GR_BAT.dlis"
-14400-15800
+Log Range: 14305.0 - 15820.0 ft
 
 
 ============================================================

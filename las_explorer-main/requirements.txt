@@ -1,5 +1,5 @@
-streamlit==0.73.1
-lasio==0.24.1
-missingno==0.4.2
-pandas==0.25.3
-plotly==4.14.1
+streamlit>=1.28.0
+lasio>=0.30.0
+missingno>=0.5.2
+pandas>=2.0.0
+plotly>=5.15.0
