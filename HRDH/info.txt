@@ -155,6 +155,9 @@ Lab Range: 14856.6 - 15019.8 ft
 "\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1804_0\8375\WL\Field\Final_Deliverables\RUN2\OLD\HRDH_1804_0_23DEC17_DSL-ZDL-CN_ML_BA.dlis"
 "\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1804_0\8375\WL\Field\Final_Deliverables\RUN2\HRDH_1804_0_23DEC17_ZDL-CN-DSL-GR_ML_BAT.dlis"
 lab range: 10816.75 - 14689.00
+
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1804_1\5875\WL\FIELD\Run2\HRDH_1804_1_10JAN2022_ZDL-ZDL-CN-DSL_RP_BAT.dlis"
+"\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1804_1\5875\WL\FIELD\Run2\HRDH_1804_1_10JAN2022_ZDL-ZDL-CN-DSL_ML_BAT.dlis"
 (DSL LAS)
 "\\bhidhares01\GROUPS\Daleelah_Interns\2025 interns\Ziyad alghamdi\transtion_minerals\Log Data\HRDH_1804_0\8375\WL\Field\Final_Deliverables\RUN2\HRDH_1804_0_23DEC17_DSL-ZDL-CN_ML_BA.las"
 Starting depth (STRT): 10850.0
