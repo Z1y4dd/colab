@@ -180,27 +180,27 @@ Log Range: 14305.0 - 15820.0 ft
    • CAL        | Caliper                        | Units: in
    • CALZ       | Units: in | Dim: [1]
    • CHT        | Cable head tension             | Units: lbf
-   • CN         | Compensated neutron porosity   | Units: pu
-   • CNC        | Borehole size corrected compensated neutron porosity | Units: pu
+   • CN         | Compensated neutron porosity   | Units: pu *
+   • CNC        | Borehole size corrected compensated neutron porosity | Units: pu *
    • CVOL       | Cement volume                  | Units: ft3
-   • GR         | Gamma ray                      | Units: gAPI
-   • GRSL       | Gamma ray from 1329 spectrum   | Units: gAPI
-   • HRD1       | Long space spectrum count rate 140-200 keV | Units: 
-   • HRD2       | Long space spectrum count rate 200-540 keV | Units: 
-   • K          | Potassium content              | Units: %
-   • KTH        | Stripped potassium-thorium     | Units: gAPI
-   • LSN        | Long space neutron             | Units: 1/s
-   • PE         | Photo electric cross-section   | Units: b/e
-   • QPKS       | Number of peaks found          | Units: 
+   • GR         | Gamma ray                      | Units: gAPI *
+   • GRSL       | Gamma ray from 1329 spectrum   | Units: gAPI *
+   • HRD1       | Long space spectrum count rate 140-200 keV | Units: *
+   • HRD2       | Long space spectrum count rate 200-540 keV | Units:* 
+   • K          | Potassium content              | Units: %*
+   • KTH        | Stripped potassium-thorium     | Units: gAPI*
+   • LSN        | Long space neutron             | Units: 1/s*
+   • PE         | Photo electric cross-section   | Units: b/e*
+   • QPKS       | Number of peaks found          | Units: *
    • RTHK       | Ratio of thorium to potassium  | Units: 
    • RTHU       | Ratio of thorium to uranium    | Units: 
    • RUK        | Ratio of uranium to potassium  | Units: 
-   • SFT2       | Long space spectrum count rate 100-140 keV | Units: 
-   • SHR        | Soft to hard count rate ratio (SOFT/HRD2) | Units: 
+   • SFT2       | Long space spectrum count rate 100-140 keV | Units:* 
+   • SHR        | Soft to hard count rate ratio (SOFT/HRD2) | Units: *
    • SLGN       | Gain value                     | Units: 
    • SLSP       | SL spectrum channels 1-254 (subset 0) | Units: 1/s
    • SLSPQ0     | SL spectrum channels 1-254 (subset 0) | Units: 
-   • SLTM       | Delta elapsed time             | Units: ms
+   • SLTM       | Delta elapsed time             | Units: ms*
    • SPD        | Speed                          | Units: ft/min
    • SSD        | Short space count rate         | Units: 
    • SSN        | Short space count rate         | Units: 1/s
@@ -211,7 +211,7 @@ Log Range: 14305.0 - 15820.0 ft
    • WTBH       | Temperature of borehole        | Units: degF
    • ZCOR       | Density correction             | Units: g/cm3
    • ZDEN       | Formation bulk density         | Units: g/cm3
-   • ZDNC       | Borehole size/mud weight corrected density | Units: g/cm3
+   • ZDNC       | Borehole size/mud weight corrected density | Units: g/cm3 *
 
 
 well_name_0_09JAN2012_ZDL-CN-DSL_ML_BA.dlis

@@ -5,7 +5,9 @@ import traceback
 import numpy as np
 from scipy.spatial import cKDTree
 import glob
-
+from matplotlib import pyplot as plt
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
     """
@@ -295,7 +297,6 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
         traceback.print_exc() if verbose else None
         return pd.DataFrame()
 
-# Enhanced usage example
 def load_and_validate_dlis(path, **kwargs):
     """Wrapper function with additional validation"""
     try:
@@ -570,15 +571,15 @@ def load_full_log(
                 
                 # Configure error handler for corrupt files
                 error_handler = None
-                try:
-                    error_handler = dlis.ErrorHandler(
-                        critical=dlis.actions.IGNORE,
-                        major=dlis.actions.IGNORE,
-                        minor=dlis.actions.IGNORE
-                    )
-                except Exception:
-                    # Older dlisio versions might not support this
-                    pass
+                # try:
+                #     error_handler = dlis.ErrorHandler(
+                #         critical=dlis.actions.IGNORE,
+                #         major=dlis.actions.IGNORE,
+                #         minor=dlis.actions.IGNORE
+                #     )
+                # except Exception:
+                #     # Older dlisio versions might not support this
+                #     pass
                 
                 # Load with appropriate parameters
                 if error_handler:
@@ -1015,3 +1016,362 @@ def load_dlis_files_from_list(
         metadata['all_channels_found'] = sorted(list(all_channels))
     
     return result_df, metadata
+
+def create_mineral_composition_bar(data, mineral_columns):
+    """Create stacked bar chart of mineral composition by depth"""
+    
+    # Sort by depth for proper stratigraphic order (deepest at bottom)
+    plot_data = data.sort_values('Lab_Depth', ascending=False)
+    
+    # Set up the figure
+    fig, ax = plt.subplots(figsize=(12, 14))
+    
+    # Filter to only include specified mineral columns and ensure they sum to 100%
+    minerals_data = plot_data[mineral_columns].copy()
+    
+    # Normalize each row to sum to 100%
+    row_sums = minerals_data.sum(axis=1)
+    normalized_data = minerals_data.div(row_sums, axis=0) * 100
+    
+    # Create stacked horizontal bar chart
+    normalized_data.plot(kind='barh', stacked=True, ax=ax, width=0.8,
+                         colormap='tab20')
+    
+    # Add depth labels on y-axis
+    ax.set_yticks(range(len(plot_data)))
+    ax.set_yticklabels([f"{d:.1f}" for d in plot_data['Lab_Depth']])
+    
+    # Customize plot
+    ax.set_xlabel('Mineral Composition (%)')
+    ax.set_ylabel('Depth (ft)')
+    ax.set_title('Mineral Composition vs Depth', fontsize=16)
+    plt.legend(title='Minerals', bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.grid(True, linestyle='--', alpha=0.7)
+    
+    plt.tight_layout()
+    plt.savefig('mineral_composition_vs_depth.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    
+    return fig
+
+def create_log_vs_mineral_scatterplots(data, log_vars, mineral_vars, n_cols=3):
+    """Create a grid of scatterplots comparing log measurements to mineral content"""
+    
+    # Find all combinations with correlation coefficients
+    correlations = []
+    for log_var in log_vars:
+        for mineral_var in mineral_vars:
+            if log_var in data.columns and mineral_var in data.columns:
+                valid_data = data[[log_var, mineral_var]].dropna()
+                if len(valid_data) >= 5:  # Need at least 5 points for meaningful correlation
+                    corr = valid_data.corr().iloc[0, 1]
+                    correlations.append((log_var, mineral_var, corr, len(valid_data)))
+    
+    # Sort by absolute correlation (strongest first)
+    correlations.sort(key=lambda x: abs(x[2]), reverse=True)
+    
+    # Select top correlations (up to 9 plots)
+    top_correlations = correlations[:9]
+    
+    if not top_correlations:
+        print("❌ No valid correlations found with sufficient data points")
+        return None
+    
+    # Determine grid size
+    n_plots = len(top_correlations)
+    n_rows = (n_plots + n_cols - 1) // n_cols
+    
+    # Create figure
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(5*n_cols, 4*n_rows))
+    axes = axes.flatten() if n_plots > 1 else [axes]
+    
+    # Create scatterplots
+    for i, (log_var, mineral_var, corr, n) in enumerate(top_correlations):
+        if i < len(axes):
+            # Clean and prepare data
+            plot_data = data[[log_var, mineral_var, 'Distance']].dropna()
+            
+            # Color by match distance quality
+            scatter = axes[i].scatter(plot_data[log_var], plot_data[mineral_var], 
+                          c=plot_data['Distance'], cmap='viridis_r',
+                          alpha=0.8, s=50, edgecolor='k', linewidth=0.5)
+            
+            # Add trend line
+            sns.regplot(x=log_var, y=mineral_var, data=plot_data, 
+                        scatter=False, ax=axes[i], color='red', line_kws={'linewidth': 2})
+            
+            # Add correlation text
+            axes[i].text(0.05, 0.95, f'r = {corr:.2f}\nn = {n}', 
+                      transform=axes[i].transAxes, fontsize=12,
+                      verticalalignment='top', 
+                      bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+            
+            # Customize plot
+            axes[i].set_title(f'{log_var.replace("Log_", "")} vs {mineral_var.replace("Lab_", "")}')
+            axes[i].set_xlabel(log_var)
+            axes[i].set_ylabel(mineral_var)
+            axes[i].grid(True, linestyle='--', alpha=0.3)
+    
+    # Hide unused subplots
+    for i in range(n_plots, len(axes)):
+        axes[i].set_visible(False)
+    
+    # Add colorbar for match distance
+    if n_plots > 0:
+        cbar = fig.colorbar(scatter, ax=axes, pad=0.01)
+        cbar.set_label('Match Distance (ft)')
+    
+    plt.tight_layout()
+    plt.savefig('log_vs_mineral_scatterplots.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    
+    return fig
+
+def create_depth_trend_plots(data, variables, n_cols=3):
+    """Create depth trend plots for selected variables"""
+    
+    n_vars = len(variables)
+    n_rows = (n_vars + n_cols - 1) // n_cols
+    
+    fig, axes = plt.subplots(1, n_cols, figsize=(16, 8), sharey=True)
+    if n_cols == 1:
+        axes = [axes]
+    
+    # Sort by depth for proper stratigraphic order (deepest at bottom)
+    plot_data = data.sort_values('Lab_Depth')
+    
+    # Common y-axis (depth)
+    depth = plot_data['Lab_Depth']
+    
+    # Color palette
+    colors = plt.cm.tab10.colors
+    
+    for i, var in enumerate(variables[:n_cols]):
+        if var in plot_data.columns:
+            # Get clean data
+            var_data = plot_data[var].values
+            
+            # Create line plot
+            axes[i].plot(var_data, depth, 'o-', color=colors[i % len(colors)], 
+                        markersize=6, linewidth=2, alpha=0.7)
+            
+            # Add horizontal grid lines
+            axes[i].grid(True, axis='y', linestyle='--', alpha=0.7)
+            
+            # Add labels
+            axes[i].set_title(var.replace('Lab_', '').replace('Log_', ''), fontsize=12)
+            axes[i].set_xlabel(var, fontsize=10)
+            
+            # Invert y-axis for depth (top at top)
+            axes[i].invert_yaxis()
+    
+    # Set common y label only on leftmost plot
+    axes[0].set_ylabel('Depth (ft)', fontsize=12)
+    
+    # Add main title
+    fig.suptitle('Depth Trends of Key Variables', fontsize=16, y=1.02)
+    
+    plt.tight_layout()
+    plt.savefig('depth_trend_plots.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    
+    return fig
+
+def create_mineral_pairplots(data, mineral_vars, color_var=None):
+    """Create pairplots for mineral relationships with optional coloring"""
+    
+    # Subset data to selected variables
+    plot_data = data[mineral_vars].copy()
+    
+    # Add a color variable if specified
+    if color_var and color_var in data.columns:
+        plot_data[color_var] = data[color_var]
+        
+        # Create pairplot with coloring
+        g = sns.pairplot(plot_data, diag_kind='kde', 
+                         plot_kws={'alpha': 0.6, 'edgecolor': 'k', 'linewidth': 0.5},
+                         hue=color_var)
+    else:
+        # Create pairplot without coloring
+        g = sns.pairplot(plot_data, diag_kind='kde', 
+                         plot_kws={'alpha': 0.6, 'edgecolor': 'k', 'linewidth': 0.5})
+    
+    # Adjust title and layout
+    plt.subplots_adjust(top=0.95)
+    g.fig.suptitle('Relationships Between Minerals', fontsize=16)
+    
+    plt.savefig('mineral_pairplots.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    
+    return g
+
+def create_composite_log_plot(data, log_vars, label_cols=None):
+    """Create a composite log plot with multiple tracks"""
+    
+    # Sort by depth
+    plot_data = data.sort_values('Lab_Depth')
+    
+    # Set up tracks (columns of plots)
+    n_tracks = min(4, len(log_vars) // 2 + 1)  # At most 4 tracks
+    
+    # Create figure
+    fig, axes = plt.subplots(1, n_tracks, figsize=(3*n_tracks, 10), sharey=True)
+    if n_tracks == 1:
+        axes = [axes]
+    
+    # Depth data
+    depth = plot_data['Lab_Depth']
+    
+    # Customize each track
+    # Track 1: Basic measurements (GR, density)
+    basic_logs = [var for var in log_vars if any(x in var for x in ['GR', 'ZDEN', 'PE'])]
+    if basic_logs and len(basic_logs) > 0:
+        ax = axes[0]
+        
+        # Multiple curves on same track with different colors
+        for i, log in enumerate(basic_logs[:3]):  # Limit to 3 curves per track
+            if log in plot_data.columns:
+                color = ['green', 'red', 'blue'][i % 3]
+                ax.plot(plot_data[log], depth, label=log.replace('Log_', ''), 
+                       color=color, linewidth=2)
+        
+        ax.set_title('Basic Logs', fontsize=12)
+        ax.legend(loc='upper right', fontsize=8)
+        ax.grid(True, linestyle='--', alpha=0.5)
+        ax.invert_yaxis()  # Depth increases downward
+    
+    # Track 2: Spectral data
+    spectral_logs = [var for var in log_vars if any(x in var for x in ['K', 'U', 'TH'])]
+    if len(spectral_logs) > 0 and len(axes) > 1:
+        ax = axes[1]
+        
+        for i, log in enumerate(spectral_logs[:3]):
+            if log in plot_data.columns:
+                color = ['purple', 'brown', 'orange'][i % 3]
+                ax.plot(plot_data[log], depth, label=log.replace('Log_', ''), 
+                       color=color, linewidth=2)
+        
+        ax.set_title('Spectral Data', fontsize=12)
+        ax.legend(loc='upper right', fontsize=8)
+        ax.grid(True, linestyle='--', alpha=0.5)
+    
+    # Track 3: Lab data if available
+    mineral_vars = [var for var in data.columns if 'XRD' in var][:3]
+    if len(mineral_vars) > 0 and len(axes) > 2:
+        ax = axes[2]
+        
+        for i, mineral in enumerate(mineral_vars):
+            if mineral in plot_data.columns:
+                color = ['darkgreen', 'navy', 'maroon'][i % 3]
+                ax.plot(plot_data[mineral], depth, label=mineral.replace('Lab_', ''), 
+                       color=color, linewidth=2)
+        
+        ax.set_title('Minerals', fontsize=12)
+        ax.legend(loc='upper right', fontsize=8)
+        ax.grid(True, linestyle='--', alpha=0.5)
+    
+    # Additional track if needed
+    other_logs = [var for var in log_vars if not any(x in var for x in ['GR', 'ZDEN', 'PE', 'K', 'U', 'TH'])][:3]
+    if len(other_logs) > 0 and len(axes) > 3:
+        ax = axes[3]
+        
+        for i, log in enumerate(other_logs):
+            if log in plot_data.columns:
+                color = ['teal', 'magenta', 'gold'][i % 3]
+                ax.plot(plot_data[log], depth, label=log.replace('Log_', ''), 
+                       color=color, linewidth=2)
+        
+        ax.set_title('Other Logs', fontsize=12)
+        ax.legend(loc='upper right', fontsize=8)
+        ax.grid(True, linestyle='--', alpha=0.5)
+    
+    # Set common y label only on leftmost plot
+    axes[0].set_ylabel('Depth (ft)', fontsize=14)
+    
+    # Add labels if provided
+    if label_cols:
+        # Find label positions at regular intervals
+        label_positions = np.linspace(depth.min(), depth.max(), 10)
+        
+        for label_col in label_cols:
+            if label_col in plot_data.columns:
+                for pos in label_positions:
+                    # Find nearest sample
+                    idx = (plot_data['Lab_Depth'] - pos).abs().idxmin()
+                    label_text = f"{plot_data.loc[idx, label_col]:.1f}"
+                    
+                    # Add label to all tracks
+                    for ax in axes:
+                        ax.text(0.95, pos, label_text, transform=ax.get_yaxis_transform(),
+                               verticalalignment='center', horizontalalignment='right',
+                               fontsize=8, bbox=dict(facecolor='white', alpha=0.7, boxstyle='round'))
+    
+    # Add title
+    fig.suptitle('Composite Log', fontsize=16, y=1.02)
+    
+    plt.tight_layout()
+    plt.savefig('composite_log_plot.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    
+    return fig
+
+def calculate_zscore(data, columns=None):
+    """Calculate z-scores for specified columns
+    
+    Args:
+        data (DataFrame): Input data
+        columns (list, optional): Columns to calculate z-scores for. If None, use all numeric columns.
+    
+    Returns:
+        DataFrame: DataFrame with z-scores
+    """
+    # Select columns to process
+    if columns is None:
+        columns = data.select_dtypes(include=np.number).columns
+    
+    # Create new DataFrame for z-scores
+    z_data = pd.DataFrame(index=data.index)
+    
+    # Calculate z-score for each column
+    for col in columns:
+        mean = data[col].mean()
+        std = data[col].std()
+        
+        # Avoid division by zero
+        if std > 0:
+            z_data[f"{col}_z"] = (data[col] - mean) / std
+        else:
+            z_data[f"{col}_z"] = np.zeros(len(data))
+            
+    return z_data
+
+def plot_zscore_heatmap(data, z_data, vars_list, threshold=3):
+    """Create heatmap of z-scores to identify patterns of outliers"""
+    
+    # Create a mask for extreme values
+    z_subset = z_data[[f"{col}_z" for col in vars_list]]
+    # Clip extreme values for better visualization
+    z_subset_clipped = z_subset.clip(lower=-5, upper=5)
+    
+    # Create figure
+    plt.figure(figsize=(14, 10))
+    
+    # Create heatmap
+    sns.heatmap(z_subset_clipped, 
+                cmap='RdYlGn',
+                center=0, 
+                vmin=-threshold, 
+                vmax=threshold,
+                yticklabels=z_subset.index)
+    
+    # Add labels and title
+    plt.title('Z-Score Heatmap (Red = Positive Outliers, Blue = Negative Outliers)', fontsize=16)
+    plt.xlabel('Variables', fontsize=12)
+    plt.ylabel('Sample Index', fontsize=12)
+    
+    # Better formatting for x-axis labels
+    plt.xticks(rotation=45, ha='right')
+    
+    plt.tight_layout()
+    plt.savefig('zscore_heatmap.png', dpi=300, bbox_inches='tight')
+    plt.show()
