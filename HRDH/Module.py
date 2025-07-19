@@ -1177,33 +1177,6 @@ def create_depth_trend_plots(data, variables, n_cols=3):
     
     return fig
 
-def create_mineral_pairplots(data, mineral_vars, color_var=None):
-    """Create pairplots for mineral relationships with optional coloring"""
-    
-    # Subset data to selected variables
-    plot_data = data[mineral_vars].copy()
-    
-    # Add a color variable if specified
-    if color_var and color_var in data.columns:
-        plot_data[color_var] = data[color_var]
-        
-        # Create pairplot with coloring
-        g = sns.pairplot(plot_data, diag_kind='kde', 
-                         plot_kws={'alpha': 0.6, 'edgecolor': 'k', 'linewidth': 0.5},
-                         hue=color_var)
-    else:
-        # Create pairplot without coloring
-        g = sns.pairplot(plot_data, diag_kind='kde', 
-                         plot_kws={'alpha': 0.6, 'edgecolor': 'k', 'linewidth': 0.5})
-    
-    # Adjust title and layout
-    plt.subplots_adjust(top=0.95)
-    g.fig.suptitle('Relationships Between Minerals', fontsize=16)
-    
-    plt.savefig('mineral_pairplots.png', dpi=300, bbox_inches='tight')
-    plt.show()
-    
-    return g
 
 def create_composite_log_plot(data, log_vars, label_cols=None):
     """Create a composite log plot with multiple tracks"""
