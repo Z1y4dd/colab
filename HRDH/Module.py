@@ -1054,13 +1054,12 @@ def create_log_summary(log_df):
     # Print summary report
     print("\n COMPREHENSIVE LOG DATA SUMMARY")
     print("=" * 50)
-    print(f"Well: HRDH_697_0")
     
-    print("\n📏 DEPTH COVERAGE:")
+    print("\n DEPTH COVERAGE:")
     print(f"Range: {depth_min:.1f} - {depth_max:.1f} ft")
     print(f"Total span: {depth_span:.1f} ft")
     
-    print("\n📈 DATA STATISTICS:")
+    print("\n DATA STATISTICS:")
     print(f"Total samples: {total_samples:,} depth points")
     print(f"Total curves: {total_curves} measurement channels")
     print(f"Data density: {total_samples/depth_span:.1f} samples/ft")
@@ -1076,7 +1075,7 @@ def create_log_summary(log_df):
     print(f"Best curve: {max_complete_curve} ({max_completeness:.1f}% complete)")
     print(f"Worst curve: {min_complete_curve} ({min_completeness:.1f}% complete)")
     
-    print("\n⏱️ DEPTH SAMPLING:")
+    print("\n DEPTH SAMPLING:")
     print(f"Average interval: {avg_interval:.3f} ft")
     print(f"Min interval: {min_interval:.3f} ft")
     print(f"Max interval: {max_interval:.3f} ft")
@@ -1775,46 +1774,130 @@ def visualize_significant_correlations(data, correlation_results, significance_l
         "negative_correlations": negative_correlations
     }
 
-def create_distribution_grid(data, variables, ncols=4, figsize_per_plot=(4, 3)):
-    """Create efficient grid of distribution plots instead of individual loops"""
+def create_distribution_grid(data, variables, ncols=4, figsize_per_plot=(4, 3), kde=True, bins=30, 
+                             color_map='viridis', highlight_outliers=True, group_by=None):
+    """
+    Create efficient grid of distribution plots with enhanced visualization and analysis features
+    
+    Parameters:
+    -----------
+    data : pandas.DataFrame
+        DataFrame containing the variables to plot
+    variables : list
+        List of column names to plot
+    ncols : int
+        Number of columns in the grid
+    figsize_per_plot : tuple
+        Figure size per subplot (width, height)
+    kde : bool
+        Whether to show kernel density estimate
+    bins : int or str
+        Number of bins or binning strategy (e.g., 'auto', 'sturges')
+    color_map : str
+        Matplotlib colormap name for sequential coloring
+    highlight_outliers : bool
+        Whether to highlight outliers in the distributions
+    group_by : str, optional
+        Column name to group data by (creates faceted distributions)
+    
+    Returns:
+    --------
+    fig : matplotlib.figure.Figure
+        The created figure
+    """
+    
+    # Get colormap for sequential coloring
+    cmap = plt.cm.get_cmap(color_map)
+    colors = [cmap(i/len(variables)) for i in range(len(variables))]
     
     n_vars = len(variables)
     nrows = (n_vars + ncols - 1) // ncols
     
     fig, axes = plt.subplots(nrows, ncols, 
-                            figsize=(figsize_per_plot[0] * ncols, figsize_per_plot[1] * nrows))
+                           figsize=(figsize_per_plot[0] * ncols, figsize_per_plot[1] * nrows))
     
-    # Handle single row case
-    if nrows == 1:
-        axes = [axes] if ncols == 1 else axes
-    else:
-        axes = axes.flatten()
+    # Handle single row/column cases
+    if nrows * ncols == 1:
+        axes = np.array([axes])
+    axes = axes.flatten()
     
     for i, var in enumerate(variables):
         if i < len(axes):
-            # Clean data and create histogram
+            ax = axes[i]
+            # Clean data
             clean_data = data[var].dropna()
             
             if len(clean_data) > 0:
-                sns.histplot(clean_data, bins=30, kde=True, ax=axes[i])
-                axes[i].set_title(f"{var.replace('Lab_', '').replace('Log_', '')}", fontsize=10)
-                axes[i].set_xlabel(var, fontsize=8)
-                axes[i].set_ylabel("Count", fontsize=8)
-                axes[i].tick_params(labelsize=8)
+                # Calculate statistics
+                mean_val = clean_data.mean()
+                median_val = clean_data.median()
+                std_val = clean_data.std()
+                skew_val = clean_data.skew()
                 
-                # Add statistics text
-                axes[i].text(0.02, 0.98, 
-                           f'μ={clean_data.mean():.2f}\nσ={clean_data.std():.2f}\nn={len(clean_data)}',
-                           transform=axes[i].transAxes, fontsize=7, 
-                           verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+                # Detect outliers (beyond 1.5 IQR)
+                q1, q3 = np.percentile(clean_data, [25, 75])
+                iqr = q3 - q1
+                lower_bound = q1 - 1.5 * iqr
+                upper_bound = q3 + 1.5 * iqr
+                outliers = clean_data[(clean_data < lower_bound) | (clean_data > upper_bound)]
+                
+                # Create histogram with or without KDE
+                sns.histplot(clean_data, bins=bins, kde=kde, ax=ax, 
+                             color=colors[i], alpha=0.7, edgecolor='k', linewidth=0.5)
+                
+                # Add vertical lines for mean and median
+                ax.axvline(mean_val, color='red', linestyle='-', linewidth=1.5, alpha=0.7, label=f'Mean: {mean_val:.2f}')
+                ax.axvline(median_val, color='green', linestyle='--', linewidth=1.5, alpha=0.7, label=f'Median: {median_val:.2f}')
+                
+                # Highlight outliers if requested
+                if highlight_outliers and len(outliers) > 0:
+                    outlier_positions = np.zeros_like(outliers)
+                    ax.scatter(outliers, outlier_positions, color='red', s=20, alpha=0.6, marker='o', label=f'Outliers: {len(outliers)}')
+                
+                # Add comprehensive statistics text
+                stats_text = (
+                    f'μ = {mean_val:.2f}\n'
+                    f'σ = {std_val:.2f}\n'
+                    f'Median = {median_val:.2f}\n'
+                    f'Skew = {skew_val:.2f}\n'
+                    f'n = {len(clean_data)}'
+                )
+                
+                ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, fontsize=8,
+                       verticalalignment='top', horizontalalignment='left',
+                       bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+                
+                # Add normalized y-axis option for better comparison
+                ax_twin = ax.twinx()
+                sns.kdeplot(clean_data, ax=ax_twin, color='navy', alpha=0.5, linewidth=2)
+                ax_twin.set_ylabel('Density', color='navy')
+                ax_twin.tick_params(axis='y', colors='navy')
+                ax_twin.set_ylim(bottom=0)
+                
+                # Improve labels and formatting
+                title = var.replace('Lab_', '').replace('Log_', '')
+                ax.set_title(f"{title}", fontsize=10)
+                ax.set_xlabel(var, fontsize=8)
+                ax.set_ylabel("Count", fontsize=8)
+                ax.tick_params(labelsize=8)
+                
+                # Add compact legend
+                if i == 0:  # Add legend only to first plot to avoid repetition
+                    handles, labels = ax.get_legend_handles_labels()
+                    if handles:
+                        ax.legend(fontsize=7, loc='upper right')
             else:
-                axes[i].text(0.5, 0.5, 'No Data', transform=axes[i].transAxes, 
-                           ha='center', va='center', fontsize=12)
-                axes[i].set_title(f"{var} (No Data)")
+                ax.text(0.5, 0.5, 'No Data', transform=ax.transAxes, 
+                      ha='center', va='center', fontsize=12)
+                ax.set_title(f"{var} (No Data)")
     
     # Hide empty subplots
     for i in range(n_vars, len(axes)):
         axes[i].set_visible(False)
+    
+    # Add overall title with dataset info
+    fig.text(0.5, 0.01, f'Total variables: {n_vars} | Total samples: {len(data)}', 
+             ha='center', fontsize=10, style='italic')
     
     plt.tight_layout()
     return fig

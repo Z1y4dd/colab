@@ -185,6 +185,14 @@ Log Range: 14305.0 - 15820.0 ft
    • CVOL       | Cement volume                  | Units: ft3
    • GR         | Gamma ray                      | Units: gAPI *
    • GRSL       | Gamma ray from 1329 spectrum   | Units: gAPI *
+   • GRSLC      | Gamma Ray Spectral (total spectral gamma ray)
+   • KC         | Potassium Concentration
+   • KTHC       | Potassium-Thorium ratio
+   • RTHKC      | Thorium to Potassium ratio
+   • RTHUC      | Thorium to Uranium ratio
+   • RUKC       | Uranium to Potassium ratio
+   • THC        | Thorium Concentration
+   • UC         | Uranium Concentration
    • HRD1       | Long space spectrum count rate 140-200 keV | Units: *
    • HRD2       | Long space spectrum count rate 200-540 keV | Units:* 
    • K          | Potassium content              | Units: %*
