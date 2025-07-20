@@ -8,6 +8,8 @@ import glob
 from matplotlib import pyplot as plt
 import seaborn as sns
 import matplotlib.pyplot as plt
+from scipy.stats import pearsonr, spearmanr
+
 
 def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
     """
@@ -36,7 +38,7 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
             print(msg)
     
     # 1. FILE VALIDATION
-    vprint("🔍 STEP 1: FILE VALIDATION")
+    vprint(" STEP 1: FILE VALIDATION")
     vprint("=" * 40)
     
     try:
@@ -45,41 +47,41 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
             raise FileNotFoundError(f"DLIS file not found: {path}")
         
         if not path.suffix.lower() in ['.dlis', '.dls']:
-            vprint(f"⚠️ Warning: File extension '{path.suffix}' is not typical for DLIS files")
+            vprint(f" Warning: File extension '{path.suffix}' is not typical for DLIS files")
             
         file_size_mb = path.stat().st_size / (1024 * 1024)
         vprint(f"✅ File found: {path.name}")
-        vprint(f"   • Size: {file_size_mb:.1f} MB")
-        vprint(f"   • Path: {path}")
+        vprint(f"Size: {file_size_mb:.1f} MB")
+        vprint(f"Path: {path}")
         
     except Exception as e:
-        vprint(f"❌ File validation failed: {e}")
+        vprint(f" File validation failed: {e}")
         return pd.DataFrame()
     
     # 2. DLIS FILE LOADING
-    vprint(f"\n🔍 STEP 2: DLIS FILE LOADING")
+    vprint(f"\n STEP 2: DLIS FILE LOADING")
     vprint("=" * 40)
     
     try:
         # Load DLIS file
         files = dlis.load(str(path))
         vprint(f"✅ DLIS file loaded successfully")
-        vprint(f"   • Number of logical files: {len(files)}")
+        vprint(f"Number of logical files: {len(files)}")
         
         if len(files) == 0:
             raise ValueError("No logical files found in DLIS file")
             
         # Use first logical file
         logical_file = files[0]
-        vprint(f"   • Using logical file: {logical_file.name if hasattr(logical_file, 'name') else 'unnamed'}")
+        vprint(f"Using logical file: {logical_file.name if hasattr(logical_file, 'name') else 'unnamed'}")
         
     except Exception as e:
-        vprint(f"❌ DLIS loading failed: {e}")
+        vprint(f" DLIS loading failed: {e}")
         traceback.print_exc() if verbose else None
         return pd.DataFrame()
     
     # 3. FRAME VALIDATION
-    vprint(f"\n🔍 STEP 3: FRAME VALIDATION")
+    vprint(f"\n STEP 3: FRAME VALIDATION")
     vprint("=" * 40)
     
     try:
@@ -92,11 +94,11 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
         # List all available frames
         for i, frame in enumerate(frames):
             frame_name = frame.name if hasattr(frame, 'name') else f"Frame_{i}"
-            vprint(f"   • Frame {i}: {frame_name}")
+            vprint(f"Frame {i}: {frame_name}")
             
         # Validate frame index
         if frame_index >= len(frames):
-            vprint(f"⚠️ Frame index {frame_index} out of range, using frame 0")
+            vprint(f" Frame index {frame_index} out of range, using frame 0")
             frame_index = 0
             
         selected_frame = frames[frame_index]
@@ -104,11 +106,11 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
         vprint(f"✅ Selected frame {frame_index}: {frame_name}")
         
     except Exception as e:
-        vprint(f"❌ Frame validation failed: {e}")
+        vprint(f" Frame validation failed: {e}")
         return pd.DataFrame()
     
     # 4. CHANNEL ANALYSIS
-    vprint(f"\n🔍 STEP 4: CHANNEL ANALYSIS")
+    vprint(f"\n STEP 4: CHANNEL ANALYSIS")
     vprint("=" * 40)
     
     try:
@@ -144,7 +146,7 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
         if found_depth:
             vprint(f"✅ Depth channel found: {found_depth}")
         else:
-            vprint(f"⚠️ No standard depth channel found. Available: {channel_names[:5]}...")
+            vprint(f" No standard depth channel found. Available: {channel_names[:5]}...")
         
         # Store channel descriptions in metadata to return later
         metadata = {
@@ -155,37 +157,37 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
         }
             
     except Exception as e:
-        vprint(f"❌ Channel analysis failed: {e}")
+        vprint(f" Channel analysis failed: {e}")
         return pd.DataFrame()
     
     # 5. DATA EXTRACTION
-    vprint(f"\n🔍 STEP 5: DATA EXTRACTION")
+    vprint(f"\n STEP 5: DATA EXTRACTION")
     vprint("=" * 40)
     
     try:
         # Get curves data
         curves_data = selected_frame.curves()
         vprint(f"✅ Curves data extracted")
-        vprint(f"   • Data type: {type(curves_data)}")
-        vprint(f"   • Shape: {curves_data.shape}")
-        vprint(f"   • Dtype: {curves_data.dtype}")
+        vprint(f"Data type: {type(curves_data)}")
+        vprint(f"Shape: {curves_data.shape}")
+        vprint(f"Dtype: {curves_data.dtype}")
         
         # Check if structured array
         if not (hasattr(curves_data.dtype, 'names') and curves_data.dtype.names):
-            vprint(f"❌ Data is not a structured array with named fields")
-            vprint(f"   • Cannot extract channel data automatically")
+            vprint(f" Data is not a structured array with named fields")
+            vprint(f"Cannot extract channel data automatically")
             return pd.DataFrame()
             
         field_names = curves_data.dtype.names
         vprint(f"✅ Found {len(field_names)} data fields")
         
     except Exception as e:
-        vprint(f"❌ Data extraction failed: {e}")
+        vprint(f" Data extraction failed: {e}")
         traceback.print_exc() if verbose else None
         return pd.DataFrame()
     
     # 6. FIELD TO CHANNEL MAPPING
-    vprint(f"\n🔍 STEP 6: FIELD MAPPING")
+    vprint(f"\n STEP 6: FIELD MAPPING")
     vprint("=" * 40)
     
     field_to_channel = {}
@@ -224,7 +226,7 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
             
             # Check dimensionality
             if array.ndim > 1:
-                vprint(f"   ⚠️ Skipping multi-dimensional: {simple_name} {array.shape}")
+                vprint(f"    Skipping multi-dimensional: {simple_name} {array.shape}")
                 skipped_fields.append(f"{simple_name} (multi-dim)")
                 continue
                 
@@ -234,21 +236,21 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
             vprint(f"   ✅ {simple_name}: {len(array)} samples")
             
         except Exception as e:
-            vprint(f"   ❌ Error processing {field}: {e}")
+            vprint(f"    Error processing {field}: {e}")
             skipped_fields.append(f"{field} (error)")
             
-    vprint(f"\n📊 MAPPING SUMMARY:")
-    vprint(f"   • Successfully mapped: {len(data_dict)} fields")
-    vprint(f"   • Skipped: {len(skipped_fields)} fields")
+    vprint(f"\n MAPPING SUMMARY:")
+    vprint(f"Successfully mapped: {len(data_dict)} fields")
+    vprint(f"Skipped: {len(skipped_fields)} fields")
     if skipped_fields and verbose:
-        vprint(f"   • Skipped list: {skipped_fields[:5]}{'...' if len(skipped_fields) > 5 else ''}")
+        vprint(f"Skipped list: {skipped_fields[:5]}{'...' if len(skipped_fields) > 5 else ''}")
     
     # 7. DATAFRAME CREATION
-    vprint(f"\n🔍 STEP 7: DATAFRAME CREATION")
+    vprint(f"\n STEP 7: DATAFRAME CREATION")
     vprint("=" * 40)
     
     if not data_dict:
-        vprint(f"❌ No valid data extracted")
+        vprint(f" No valid data extracted")
         return pd.DataFrame()
         
     try:
@@ -257,9 +259,9 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
         unique_lengths = set(lengths.values())
         
         if len(unique_lengths) > 1:
-            vprint(f"⚠️ Arrays have different lengths: {dict(list(lengths.items())[:5])}")
+            vprint(f" Arrays have different lengths: {dict(list(lengths.items())[:5])}")
             min_len = min(lengths.values())
-            vprint(f"   • Truncating all arrays to {min_len} samples")
+            vprint(f"Truncating all arrays to {min_len} samples")
             data_dict = {name: arr[:min_len] for name, arr in data_dict.items()}
             
         # Create DataFrame
@@ -271,9 +273,9 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
         if depth_channel:
             df = df.set_index(depth_channel)
             vprint(f"✅ Set {depth_channel} as index")
-            vprint(f"   • Depth range: {df.index.min():.2f} - {df.index.max():.2f}")
+            vprint(f"Depth range: {df.index.min():.2f} - {df.index.max():.2f}")
         else:
-            vprint(f"⚠️ No depth channel found in extracted data")
+            vprint(f" No depth channel found in extracted data")
             
         # Filter requested columns
         if needed is not None:
@@ -284,16 +286,16 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
                 df = df[available_cols]
                 vprint(f"✅ Filtered to {len(available_cols)} requested columns")
             else:
-                vprint(f"❌ None of requested columns found: {needed}")
+                vprint(f" None of requested columns found: {needed}")
                 
             if missing_cols:
-                vprint(f"⚠️ Missing requested columns: {missing_cols}")
+                vprint(f" Missing requested columns: {missing_cols}")
                 
         vprint(f"✅ Final DataFrame: {df.shape}")
         return df
         
     except Exception as e:
-        vprint(f"❌ DataFrame creation failed: {e}")
+        vprint(f" DataFrame creation failed: {e}")
         traceback.print_exc() if verbose else None
         return pd.DataFrame()
 
@@ -303,19 +305,19 @@ def load_and_validate_dlis(path, **kwargs):
         df = dlis_to_df(path, **kwargs)
         
         if df.empty:
-            print("❌ Failed to load DLIS data")
+            print(" Failed to load DLIS data")
             return df
             
         print(f"\n✅ FINAL VALIDATION:")
-        print(f"   • Shape: {df.shape}")
-        print(f"   • Columns: {list(df.columns)}")
-        print(f"   • Index: {df.index.name}")
-        print(f"   • Memory usage: {df.memory_usage(deep=True).sum() / 1024**2:.1f} MB")
+        print(f"Shape: {df.shape}")
+        print(f"Columns: {list(df.columns)}")
+        print(f"Index: {df.index.name}")
+        print(f"Memory usage: {df.memory_usage(deep=True).sum() / 1024**2:.1f} MB")
         
         return df
         
     except Exception as e:
-        print(f"❌ Load and validation failed: {e}")
+        print(f" Load and validation failed: {e}")
         return pd.DataFrame()
 
 def load_full_dsl_log(
@@ -340,14 +342,14 @@ def load_full_dsl_log(
     """
     # 1. Discover all DLIS files
     found_files = glob.glob(f"{root_dir}/**/*.dlis", recursive=True)
-    print(f"🔍 Found {len(found_files)} total DLIS files")
+    print(f" Found {len(found_files)} total DLIS files")
 
     # 2. Filter to DSL files only
     dsl_files = [f for f in found_files if "-DSL" in Path(f).stem]
-    print(f"📊 Found {len(dsl_files)} DSL-specific files")
+    print(f" Found {len(dsl_files)} DSL-specific files")
 
     if len(dsl_files) == 0:
-        print("❌ No DSL files found!")
+        print(" No DSL files found!")
         return pd.DataFrame(), {"error": "No DSL files found"}
 
     # 3. Group by file stem to find duplicates
@@ -379,7 +381,7 @@ def load_full_dsl_log(
                 break
         if not selected:
             selected = files[0]
-            print(f"⚠️ No priority match for {stem}, using first file: {Path(selected).name}")
+            print(f" No priority match for {stem}, using first file: {Path(selected).name}")
             
         selected_files.append(selected)
         # record ignored duplicates
@@ -424,10 +426,10 @@ def load_full_dsl_log(
                 print(f"Depth range: {df.index.min():.1f} - {df.index.max():.1f} ft")
                 dfs.append(df)
             else:
-                print(f"⚠️ Empty DataFrame returned for {Path(f).name}")
+                print(f" Empty DataFrame returned for {Path(f).name}")
                 
         except Exception as e:
-            print(f"❌ Error loading {Path(f).name}: {e}")
+            print(f" Error loading {Path(f).name}: {e}")
             # Print more detailed error for debugging
             import traceback
             print(f"   Full error: {traceback.format_exc()}")
@@ -444,17 +446,17 @@ def load_full_dsl_log(
             # Check for depth duplicates
             duplicates_before = full_log.index.duplicated().sum()
             if duplicates_before > 0:
-                print(f"⚠️ Found {duplicates_before} duplicate depths, removing...")
+                print(f" Found {duplicates_before} duplicate depths, removing...")
                 full_log = full_log[~full_log.index.duplicated(keep='first')]
                 
             print(f"✅ Final combined log: {full_log.shape[0]} samples × {full_log.shape[1]} channels")
             print(f"   Combined depth range: {full_log.index.min():.1f} - {full_log.index.max():.1f} ft")
             
         except Exception as e:
-            print(f"❌ Error concatenating DataFrames: {e}")
+            print(f" Error concatenating DataFrames: {e}")
             full_log = pd.DataFrame()
     else:
-        print("❌ No valid DataFrames to concatenate")
+        print(" No valid DataFrames to concatenate")
         full_log = pd.DataFrame()
 
     # 7. Compile metadata
@@ -501,21 +503,21 @@ def load_full_log(
     """
     # 1. Discover all DLIS files
     found_files = glob.glob(f"{root_dir}/**/*.dlis", recursive=True)
-    print(f"🔍 Found {len(found_files)} total DLIS files")
+    print(f" Found {len(found_files)} total DLIS files")
 
     # 2. Filter files based on file_type parameter
     if file_type.lower() == "dsl":
         filtered_files = [f for f in found_files if "-DSL" in Path(f).stem]
-        print(f"📊 Filtered to {len(filtered_files)} DSL-specific files")
+        print(f" Filtered to {len(filtered_files)} DSL-specific files")
     elif file_type.lower() == "dlis":
         filtered_files = [f for f in found_files if "-DSL" not in Path(f).stem]
-        print(f"📊 Filtered to {len(filtered_files)} non-DSL DLIS files")
+        print(f" Filtered to {len(filtered_files)} non-DSL DLIS files")
     else:  # "all"
         filtered_files = found_files
-        print(f"📊 Using all {len(filtered_files)} DLIS files")
+        print(f" Using all {len(filtered_files)} DLIS files")
 
     if len(filtered_files) == 0:
-        print(f"❌ No {file_type.upper()} files found!")
+        print(f" No {file_type.upper()} files found!")
         return pd.DataFrame(), {"error": f"No {file_type.upper()} files found"}
 
     # 3. Group by file stem to find duplicates
@@ -547,7 +549,7 @@ def load_full_log(
                 break
         if not selected:
             selected = files[0]
-            print(f"⚠️ No priority match for {stem}, using first file: {Path(selected).name}")
+            print(f" No priority match for {stem}, using first file: {Path(selected).name}")
             
         selected_files.append(selected)
         # record ignored duplicates
@@ -625,10 +627,10 @@ def load_full_log(
                 print(f"Depth range: {df.index.min():.1f} - {df.index.max():.1f} ft")
                 dfs.append(df)
             else:
-                print(f"⚠️ Empty DataFrame returned for {Path(f).name}")
+                print(f" Empty DataFrame returned for {Path(f).name}")
                 
         except Exception as e:
-            print(f"❌ Error loading {Path(f).name}: {e}")
+            print(f" Error loading {Path(f).name}: {e}")
             # Print more detailed error for debugging
             import traceback
             print(f"   Full error: {traceback.format_exc()}")
@@ -645,17 +647,17 @@ def load_full_log(
             # Check for depth duplicates
             duplicates_before = full_log.index.duplicated().sum()
             if duplicates_before > 0:
-                print(f"⚠️ Found {duplicates_before} duplicate depths, removing...")
+                print(f" Found {duplicates_before} duplicate depths, removing...")
                 full_log = full_log[~full_log.index.duplicated(keep='first')]
                 
             print(f"✅ Final combined log: {full_log.shape[0]} samples × {full_log.shape[1]} channels")
             print(f"   Combined depth range: {full_log.index.min():.1f} - {full_log.index.max():.1f} ft")
             
         except Exception as e:
-            print(f"❌ Error concatenating DataFrames: {e}")
+            print(f" Error concatenating DataFrames: {e}")
             full_log = pd.DataFrame()
     else:
-        print("❌ No valid DataFrames to concatenate")
+        print(" No valid DataFrames to concatenate")
         full_log = pd.DataFrame()
 
     # 7. Compile metadata
@@ -702,15 +704,15 @@ def match_lab_to_log(log_df, lab_df, tol=0.1):
     print(f"After deduplication - Log: {len(log)}, Lab: {len(lab)}")
     
     if len(log) == 0 or len(lab) == 0:
-        print("❌ ERROR: Empty datasets after deduplication!")
+        print(" ERROR: Empty datasets after deduplication!")
         return pd.DataFrame()
     
     # Convert to float64 arrays
     log_depths = np.array(log.index.values, dtype=np.float64).reshape(-1, 1)
     lab_depths = np.array(lab.index.values, dtype=np.float64).reshape(-1, 1)
     
-    # print(f"   • Log depths sample: {log_depths[:3].flatten()}")
-    # print(f"   • Lab depths sample: {lab_depths[:3].flatten()}")
+    # print(f"Log depths sample: {log_depths[:3].flatten()}")
+    # print(f"Lab depths sample: {lab_depths[:3].flatten()}")
     
     # Build KD-Tree on log depths
     tree = cKDTree(log_depths)
@@ -741,7 +743,7 @@ def match_lab_to_log(log_df, lab_df, tol=0.1):
             print(f"   Match {i+1}: Lab {lab_depth:.2f} → Log {log_depth:.2f} (Δ{distance:.2f} ft)")
     
     if mask.sum() == 0:
-        print("❌ No matches found within tolerance!")
+        print(" No matches found within tolerance!")
         # Try with larger tolerance for diagnosis
         dists_large, idxs_large = tree.query(lab_depths, distance_upper_bound=1.0)
         mask_large = np.isfinite(dists_large)
@@ -833,7 +835,7 @@ def load_dlis_files_from_list(
         if verbose:
             print(msg)
     
-    vprint(f"🔍 LOADING {len(file_paths)} DLIS FILES FROM LIST")
+    vprint(f" LOADING {len(file_paths)} DLIS FILES FROM LIST")
     vprint("=" * 50)
     
     # 1. Validate input file paths
@@ -853,20 +855,20 @@ def load_dlis_files_from_list(
                     vprint(f"✅ {i+1:2d}. {path_obj.name} ({size_mb:.1f} MB)")
                 else:
                     invalid_paths.append((path, f"Invalid extension: {path_obj.suffix}"))
-                    vprint(f"⚠️ {i+1:2d}. {path_obj.name} - Invalid extension")
+                    vprint(f" {i+1:2d}. {path_obj.name} - Invalid extension")
             else:
                 invalid_paths.append((path, "File not found"))
-                vprint(f"❌ {i+1:2d}. {Path(path).name} - File not found")
+                vprint(f" {i+1:2d}. {Path(path).name} - File not found")
         except Exception as e:
             invalid_paths.append((path, str(e)))
-            vprint(f"❌ {i+1:2d}. {Path(path).name} - Error: {e}")
+            vprint(f" {i+1:2d}. {Path(path).name} - Error: {e}")
     
-    vprint(f"\n📊 VALIDATION SUMMARY:")
-    vprint(f"   • Valid files: {len(valid_paths)}")
-    vprint(f"   • Invalid files: {len(invalid_paths)}")
+    vprint(f"\n VALIDATION SUMMARY:")
+    vprint(f"Valid files: {len(valid_paths)}")
+    vprint(f"Invalid files: {len(invalid_paths)}")
     
     if len(valid_paths) == 0:
-        vprint("❌ No valid DLIS files found!")
+        vprint(" No valid DLIS files found!")
         empty_metadata = {
             "error": "No valid files",
             "invalid_paths": invalid_paths,
@@ -916,24 +918,24 @@ def load_dlis_files_from_list(
                 vprint(f"   Memory: {file_meta['memory_mb']:.1f} MB")
             else:
                 failed_loads.append((file_path, "Empty DataFrame returned"))
-                vprint(f"⚠️ Empty DataFrame returned")
+                vprint(f" Empty DataFrame returned")
                 
         except Exception as e:
             failed_loads.append((file_path, str(e)))
-            vprint(f"❌ Loading failed: {e}")
+            vprint(f" Loading failed: {e}")
             
             # Print detailed error for debugging
             if verbose:
                 import traceback
                 vprint(f"   Full error: {traceback.format_exc()}")
     
-    vprint(f"\n📊 LOADING SUMMARY:")
-    vprint(f"   • Files processed: {len(valid_paths)}")
-    vprint(f"   • Successfully loaded: {len(dataframes)}")
-    vprint(f"   • Failed to load: {len(failed_loads)}")
+    vprint(f"\n LOADING SUMMARY:")
+    vprint(f"Files processed: {len(valid_paths)}")
+    vprint(f"Successfully loaded: {len(dataframes)}")
+    vprint(f"Failed to load: {len(failed_loads)}")
     
     if len(dataframes) == 0:
-        vprint("❌ No files were successfully loaded!")
+        vprint(" No files were successfully loaded!")
         empty_metadata = {
             "error": "No files loaded successfully",
             "failed_loads": failed_loads,
@@ -955,34 +957,34 @@ def load_dlis_files_from_list(
             all_columns = set()
             for df in dataframes:
                 all_columns.update(df.columns)
-            vprint(f"   • Unique columns across all files: {len(all_columns)}")
+            vprint(f"Unique columns across all files: {len(all_columns)}")
             
             # Concatenate all DataFrames
             combined_df = pd.concat(dataframes, sort=True).sort_index()
-            vprint(f"   • Combined shape before deduplication: {combined_df.shape}")
+            vprint(f"Combined shape before deduplication: {combined_df.shape}")
             
             # Remove duplicates if requested
             if remove_duplicates:
                 duplicates_before = combined_df.index.duplicated().sum()
                 if duplicates_before > 0:
-                    vprint(f"   • Found {duplicates_before} duplicate depths")
+                    vprint(f"Found {duplicates_before} duplicate depths")
                     combined_df = combined_df[~combined_df.index.duplicated(keep='first')]
-                    vprint(f"   • Removed duplicates, new shape: {combined_df.shape}")
+                    vprint(f"Removed duplicates, new shape: {combined_df.shape}")
                 else:
-                    vprint(f"   • No duplicate depths found")
+                    vprint(f"No duplicate depths found")
             
             # Final statistics
             total_memory = combined_df.memory_usage(deep=True).sum() / 1024**2
             vprint(f"\n✅ CONCATENATION COMPLETE:")
-            vprint(f"   • Final shape: {combined_df.shape}")
-            vprint(f"   • Depth range: {combined_df.index.min():.1f} - {combined_df.index.max():.1f}")
-            vprint(f"   • Total memory: {total_memory:.1f} MB")
-            vprint(f"   • Columns: {list(combined_df.columns)}")
+            vprint(f"Final shape: {combined_df.shape}")
+            vprint(f"Depth range: {combined_df.index.min():.1f} - {combined_df.index.max():.1f}")
+            vprint(f"Total memory: {total_memory:.1f} MB")
+            vprint(f"Columns: {list(combined_df.columns)}")
             
             result_df = combined_df
             
         except Exception as e:
-            vprint(f"❌ Concatenation failed: {e}")
+            vprint(f" Concatenation failed: {e}")
             result_df = pd.DataFrame()
     else:
         vprint(f"\n📦 Returning {len(dataframes)} separate DataFrames (concatenate=False)")
@@ -1016,6 +1018,76 @@ def load_dlis_files_from_list(
         metadata['all_channels_found'] = sorted(list(all_channels))
     
     return result_df, metadata
+
+def create_log_summary(log_df):
+    """Generate a comprehensive summary of well log data"""
+    import numpy as np
+    import pandas as pd
+    
+    # Basic statistics
+    total_samples = len(log_df)
+    total_curves = len(log_df.columns)
+    depth_min = log_df.index.min()
+    depth_max = log_df.index.max()
+    depth_span = depth_max - depth_min
+    
+    # Calculate missing data percentages
+    completeness = (1 - log_df.isna().mean()) * 100
+    avg_completeness = completeness.mean()
+    min_completeness = completeness.min()
+    min_complete_curve = log_df.columns[completeness.argmin()]
+    max_completeness = completeness.max()
+    max_complete_curve = log_df.columns[completeness.argmax()]
+    
+    # Analyze depth sampling
+    depth_intervals = np.diff(log_df.index)
+    avg_interval = depth_intervals.mean()
+    min_interval = depth_intervals.min()
+    max_interval = depth_intervals.max()
+    
+    # Identify curve types
+    gr_curves = [col for col in log_df.columns if 'GR' in col.upper()]
+    density_curves = [col for col in log_df.columns if any(x in col.upper() for x in ['ZDEN', 'DENS', 'RHO'])]
+    neutron_curves = [col for col in log_df.columns if any(x in col.upper() for x in ['NPHI', 'NPOR', 'CN'])]
+    spectral_curves = [col for col in log_df.columns if any(x in col.upper() for x in ['K', 'U', 'TH', 'POT', 'URA', 'THOR'])]
+    
+    # Print summary report
+    print("\n COMPREHENSIVE LOG DATA SUMMARY")
+    print("=" * 50)
+    print(f"Well: HRDH_697_0")
+    
+    print("\n📏 DEPTH COVERAGE:")
+    print(f"Range: {depth_min:.1f} - {depth_max:.1f} ft")
+    print(f"Total span: {depth_span:.1f} ft")
+    
+    print("\n📈 DATA STATISTICS:")
+    print(f"Total samples: {total_samples:,} depth points")
+    print(f"Total curves: {total_curves} measurement channels")
+    print(f"Data density: {total_samples/depth_span:.1f} samples/ft")
+    
+    print("\n MEASUREMENT TYPES:")
+    if gr_curves: print(f"Gamma Ray: {len(gr_curves)} curves")
+    if density_curves: print(f"Density: {len(density_curves)} curves")
+    if neutron_curves: print(f"Neutron: {len(neutron_curves)} curves")
+    if spectral_curves: print(f"Spectral: {len(spectral_curves)} curves")
+    
+    print("\n✅ DATA QUALITY:")
+    print(f"Overall completeness: {avg_completeness:.1f}%")
+    print(f"Best curve: {max_complete_curve} ({max_completeness:.1f}% complete)")
+    print(f"Worst curve: {min_complete_curve} ({min_completeness:.1f}% complete)")
+    
+    print("\n⏱️ DEPTH SAMPLING:")
+    print(f"Average interval: {avg_interval:.3f} ft")
+    print(f"Min interval: {min_interval:.3f} ft")
+    print(f"Max interval: {max_interval:.3f} ft")
+    
+    return {
+        "depth_range": (depth_min, depth_max),
+        "total_samples": total_samples,
+        "total_curves": total_curves,
+        "avg_completeness": avg_completeness,
+        "depth_sampling": avg_interval
+    }
 
 def create_mineral_composition_bar(data, mineral_columns):
     """Create stacked bar chart of mineral composition by depth"""
@@ -1054,7 +1126,6 @@ def create_mineral_composition_bar(data, mineral_columns):
     
     return fig
 
-def create_log_vs_mineral_scatterplots(data, log_vars, mineral_vars, n_cols=3):
     """Create a grid of scatterplots comparing log measurements to mineral content"""
     
     # Find all combinations with correlation coefficients
@@ -1074,7 +1145,7 @@ def create_log_vs_mineral_scatterplots(data, log_vars, mineral_vars, n_cols=3):
     top_correlations = correlations[:9]
     
     if not top_correlations:
-        print("❌ No valid correlations found with sufficient data points")
+        print(" No valid correlations found with sufficient data points")
         return None
     
     # Determine grid size
@@ -1176,7 +1247,6 @@ def create_depth_trend_plots(data, variables, n_cols=3):
     plt.show()
     
     return fig
-
 
 def create_composite_log_plot(data, log_vars, label_cols=None):
     """Create a composite log plot with multiple tracks"""
@@ -1318,7 +1388,6 @@ def calculate_zscore(data, columns=None):
             
     return z_data
 
-def plot_zscore_heatmap(data, z_data, vars_list, threshold=3):
     """Create heatmap of z-scores to identify patterns of outliers"""
     
     # Create a mask for extreme values
@@ -1348,3 +1417,551 @@ def plot_zscore_heatmap(data, z_data, vars_list, threshold=3):
     plt.tight_layout()
     plt.savefig('zscore_heatmap.png', dpi=300, bbox_inches='tight')
     plt.show()
+# zscore
+def enhanced_zscore_correlation_analysis(data, log_vars, lab_vars, significance_level=0.05):
+    """Enhanced correlation with multiple statistics and significance testing for z-scores"""
+    
+    # Initialize results dictionary
+    results = {
+        'pearson_r': pd.DataFrame(index=log_vars, columns=lab_vars, dtype=float),
+        'pearson_p': pd.DataFrame(index=log_vars, columns=lab_vars, dtype=float),
+        'spearman_r': pd.DataFrame(index=log_vars, columns=lab_vars, dtype=float),
+        'spearman_p': pd.DataFrame(index=log_vars, columns=lab_vars, dtype=float),
+        'n_samples': pd.DataFrame(index=log_vars, columns=lab_vars, dtype=int)
+    }
+    
+    print("Z-SCORE ENHANCED CORRELATION ANALYSIS:")
+    print("=" * 40)
+    
+    significant_correlations = []
+    
+    for log_var in log_vars:
+        for lab_var in lab_vars:
+            # Get clean data pairs
+            clean_data = data[[log_var, lab_var]].dropna()
+            n = len(clean_data)
+            
+            if n < 3:  # Need minimum 3 points for correlation
+                continue
+                
+            try:
+                # Calculate Pearson correlation
+                pearson_r, pearson_p = pearsonr(clean_data[log_var], clean_data[lab_var])
+                
+                # Calculate Spearman correlation (rank-based, more robust)
+                spearman_r, spearman_p = spearmanr(clean_data[log_var], clean_data[lab_var])
+                
+                # Store results
+                results['pearson_r'].loc[log_var, lab_var] = pearson_r
+                results['pearson_p'].loc[log_var, lab_var] = pearson_p
+                results['spearman_r'].loc[log_var, lab_var] = spearman_r
+                results['spearman_p'].loc[log_var, lab_var] = spearman_p
+                results['n_samples'].loc[log_var, lab_var] = n
+                
+                # Check for statistical significance and strong correlation
+                if pearson_p <= significance_level and abs(pearson_r) >= 0.6:
+                    significant_correlations.append({
+                        'log_var': log_var,
+                        'lab_var': lab_var,
+                        'pearson_r': pearson_r,
+                        'pearson_p': pearson_p,
+                        'spearman_r': spearman_r,
+                        'n_samples': n
+                    })
+                    
+            except Exception as e:
+                print(f"Error calculating correlation for {log_var} vs {lab_var}: {e}")
+                continue
+    
+    # Display significant correlations
+    print(f"\nSIGNIFICANT STRONG Z-SCORE CORRELATIONS (|r| ≥ 0.6, p ≤ {significance_level}):")
+    if significant_correlations:
+        for corr in sorted(significant_correlations, key=lambda x: abs(x['pearson_r']), reverse=True):
+            print(f"{corr['log_var']} ↔ {corr['lab_var']}: "
+                  f"r={corr['pearson_r']:.3f} (p={corr['pearson_p']:.3f}, n={corr['n_samples']})")
+    else:
+        print("No significant strong correlations found")
+    
+    # Summary statistics
+    all_r = results['pearson_r'].values.flatten()
+    all_r = all_r[~pd.isna(all_r)]
+    
+    print(f"\nZ-SCORE CORRELATION SUMMARY:")
+    print(f"Total correlations calculated: {len(all_r)}")
+    print(f"Mean |r|: {np.abs(all_r).mean():.3f}")
+    print(f"Strong correlations (|r| ≥ 0.6): {(np.abs(all_r) >= 0.6).sum()}")
+    print(f"Moderate correlations (0.3 ≤ |r| < 0.6): {((np.abs(all_r) >= 0.3) & (np.abs(all_r) < 0.6)).sum()}")
+    
+    return results
+
+def create_zscore_enhanced_heatmap(correlation_results, significance_level=0.05):
+    """Create correlation heatmap with significance masking for z-scores"""
+    
+    # Get correlation matrix and p-values
+    corr_matrix = correlation_results['pearson_r']
+    p_matrix = correlation_results['pearson_p']
+    n_matrix = correlation_results['n_samples']
+    
+    # Create significance mask
+    significance_mask = (p_matrix > significance_level) | pd.isna(p_matrix)
+    
+    # Create figure with subplots
+    fig, ax1 = plt.subplots(figsize=(24,24))
+    
+    # Add more space on the left side of the plot for y-labels
+    plt.subplots_adjust(left=0.2)
+    
+    # Plot: Only significant correlations
+    sns.heatmap(corr_matrix, 
+                annot=True, 
+                cmap='RdYlGn', 
+                vmin=-1, vmax=1,
+                linewidths=0.5,
+                fmt='.2f',
+                annot_kws={'size': 20},
+                mask=significance_mask,  # Mask non-significant
+                ax=ax1,
+                cbar_kws={"shrink": 0.8})
+    
+    ax1.set_title(f'Significant Z-Score Correlations Only (p ≤ {significance_level})', fontsize=25)
+    ax1.set_xlabel('Lab Measurements (Z-Scores)', fontsize=25)
+    ax1.set_ylabel('Log Measurements (Z-Scores)', fontsize=25)
+    
+    # Fix axis tick label formatting
+    plt.sca(ax1)
+    plt.xticks(rotation=45, ha='right', fontsize=20)
+    plt.yticks(fontsize=20, rotation=0)  # Horizontal labels
+    
+    # Apply tight_layout AFTER subplots_adjust to prevent overrides
+    plt.tight_layout()
+    
+    # Move the y-label to be more visible
+    plt.gcf().axes[0].yaxis.set_label_coords(-0.15, 0.5)
+    
+    plt.savefig('zscore_enhanced_correlation_heatmap.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    
+    # Print summary of significant correlations
+    significant_count = (~significance_mask).sum().sum()
+    total_count = (~pd.isna(corr_matrix)).sum().sum()
+    
+    print(f"\nZ-SCORE CORRELATION HEATMAP SUMMARY:")
+    print(f"Total correlations: {total_count}")
+    print(f"Significant correlations: {significant_count}")
+    print(f"Significance rate: {(significant_count/total_count)*100:.1f}%")
+    
+    # Find and display strongest correlations
+    strong_correlations = []
+    for i in corr_matrix.index:
+        for j in corr_matrix.columns:
+            r = corr_matrix.loc[i, j]
+            p = p_matrix.loc[i, j]
+            if not pd.isna(r) and not pd.isna(p) and abs(r) >= 0.6 and p <= significance_level:
+                strong_correlations.append((i, j, r, p))
+    
+    if strong_correlations:
+        print(f"\nSTRONGEST SIGNIFICANT Z-SCORE CORRELATIONS:")
+        for log_var, lab_var, r, p in sorted(strong_correlations, key=lambda x: abs(x[2]), reverse=True):
+            print(f"{log_var} ↔ {lab_var}: r={r:.3f} (p={p:.4f})")
+    else:
+        print(f"\nNo strong significant z-score correlations found (|r| ≥ 0.6, p ≤ {significance_level})")
+
+# def create_enhanced_correlation_heatmap(correlation_results, significance_level=0.05):
+    """Create correlation heatmap with significance masking"""
+    
+    # Get correlation matrix and p-values
+    corr_matrix = correlation_results['pearson_r']
+    p_matrix = correlation_results['pearson_p']
+    n_matrix = correlation_results['n_samples']
+    
+    # Create significance mask
+    significance_mask = (p_matrix > significance_level) | pd.isna(p_matrix)
+    
+    # Reset matplotlib figure to ensure clean slate
+    plt.clf()
+    plt.close('all')
+    
+    # Create a new figure
+    plt.figure(figsize=(24, 24))
+    
+    # Create the heatmap directly on the current figure
+    heatmap = sns.heatmap(corr_matrix, 
+                annot=True, 
+                cmap='RdYlGn', 
+                vmin=-1, vmax=1,
+                linewidths=0.5,
+                fmt='.2f',
+                annot_kws={'size': 20},
+                mask=significance_mask,  # Mask non-significant
+                cbar_kws={"shrink": 0.8})
+    
+    # Set titles and labels
+    plt.title(f'Significant Correlations Only (p ≤ {significance_level})', fontsize=25)
+    plt.xlabel('Lab Measurements', fontsize=25)
+    plt.ylabel('Log Measurements', fontsize=25)
+    
+    # Adjust x and y tick labels
+    plt.xticks(rotation=45, ha='right', fontsize=20)
+    plt.yticks(fontsize=20, rotation=0)
+    
+    # Adjust layout
+    plt.tight_layout()
+    
+    # Save and display
+    plt.savefig('enhanced_correlation_heatmap.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    
+    # Print summary of significant correlations
+    significant_count = (~significance_mask).sum().sum()
+    total_count = (~pd.isna(corr_matrix)).sum().sum()
+    
+    print(f"\nCORRELATION HEATMAP SUMMARY:")
+    print(f"Total correlations: {total_count}")
+    print(f"Significant correlations: {significant_count}")
+    print(f"Significance rate: {(significant_count/total_count)*100:.1f}%")
+    
+    # Find and display strongest correlations
+    strong_correlations = []
+    for i in corr_matrix.index:
+        for j in corr_matrix.columns:
+            r = corr_matrix.loc[i, j]
+            p = p_matrix.loc[i, j]
+            if not pd.isna(r) and not pd.isna(p) and abs(r) >= 0.6 and p <= significance_level:
+                strong_correlations.append((i, j, r, p))
+    
+    if strong_correlations:
+        print(f"\nSTRONGEST SIGNIFICANT CORRELATIONS:")
+        for log_var, lab_var, r, p in sorted(strong_correlations, key=lambda x: abs(x[2]), reverse=True):
+            print(f"{log_var} ↔ {lab_var}: r={r:.3f} (p={p:.4f})")
+    else:
+        print(f"\nNo strong significant correlations found (|r| ≥ 0.6, p ≤ {significance_level})")
+
+def create_correlation_figure(data, correlations, correlation_type, significance_level=0.05):
+    
+    """Create scatter plots with regression lines for specified correlations"""
+    if not correlations:
+        return None
+    
+    # Calculate number of rows and columns for subplots
+    n_corrs = len(correlations)
+    n_cols = min(3, n_corrs)  # Maximum 3 columns
+    n_rows = (n_corrs + n_cols - 1) // n_cols
+    
+    # Create figure
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols*5, n_rows*4))
+    
+    # Make axes iterable even for single subplot
+    if n_rows * n_cols == 1:
+        axes = np.array([axes])
+    axes = axes.flatten()
+    
+    # Set custom colors for positive and negative correlations
+    if correlation_type == "Positive":
+        color = "#00FF7F"  
+        title_prefix = "Positive"
+    else:
+        color = "#FF0000"  
+        title_prefix = "Negative"
+    
+    # Find original data columns if we're using z-scores
+    # This will map z-score column names back to original data columns
+    original_data = joined  # Use the original joined dataframe
+    
+    # Create scatter plots
+    for i, (log_var, lab_var, r, p, n) in enumerate(correlations):
+        if i < len(axes):
+            ax = axes[i]
+            
+            # Use original variable names (remove z-score indicators if present)
+            orig_log_var = log_var
+            orig_lab_var = lab_var
+            
+            # Clean data for this pair
+            pair_data = original_data[[orig_log_var, orig_lab_var]].dropna()
+            
+            # Scatter plot with original data
+            ax.scatter(pair_data[orig_log_var], pair_data[orig_lab_var], 
+                      alpha=0.7, s=50, edgecolor='k', linewidth=0.5,
+                      color=color)
+            
+            # Add regression line using original data
+            sns.regplot(x=orig_log_var, y=orig_lab_var, data=pair_data, 
+                      scatter=False, ax=ax, color=color, 
+                      line_kws={'linewidth': 2})
+            
+            # Add correlation statistics
+            ax.text(0.05, 0.95, f'r = {r:.3f}\np = {p:.4f}\nn = {n}',
+                   transform=ax.transAxes, fontsize=10,
+                   verticalalignment='top',
+                   bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+            
+            # Labels and title - use more readable names
+            ax.set_xlabel(orig_log_var.replace('Log_', ''), fontsize=12)
+            ax.set_ylabel(orig_lab_var.replace('Lab_', ''), fontsize=12)
+            ax.set_title(f'{orig_log_var.replace("Log_", "")} vs {orig_lab_var.replace("Lab_", "")}', fontsize=14)
+            ax.grid(True, linestyle='--', alpha=0.3)
+    
+    # Hide unused subplots
+    for i in range(n_corrs, len(axes)):
+        axes[i].set_visible(False)
+    
+    # Add main title
+    plt.suptitle(f'{title_prefix} Significant Correlations (p ≤ {significance_level})', 
+                fontsize=16, y=1.02)
+    
+    # Save the figure
+    plt.tight_layout()
+    filename = f'{correlation_type.lower()}_correlations.png'
+    plt.savefig(filename, dpi=300, bbox_inches='tight')
+    
+    return fig
+
+def visualize_significant_correlations(data, correlation_results, significance_level=0.05, min_correlation=0.6):
+    """Visualize significant correlations with scatter plots"""
+    
+    # Get correlation matrix and p-values
+    corr_matrix = correlation_results['pearson_r']
+    p_matrix = correlation_results['pearson_p']
+    n_matrix = correlation_results['n_samples']
+    
+    # Find significant positive correlations
+    positive_correlations = []
+    for log_var in corr_matrix.index:
+        for lab_var in corr_matrix.columns:
+            r = corr_matrix.loc[log_var, lab_var]
+            p = p_matrix.loc[log_var, lab_var]
+            n = n_matrix.loc[log_var, lab_var]
+            
+            if not pd.isna(r) and not pd.isna(p) and r >= min_correlation and p <= significance_level:
+                positive_correlations.append((log_var, lab_var, r, p, n))
+    
+    # Find significant negative correlations
+    negative_correlations = []
+    for log_var in corr_matrix.index:
+        for lab_var in corr_matrix.columns:
+            r = corr_matrix.loc[log_var, lab_var]
+            p = p_matrix.loc[log_var, lab_var]
+            n = n_matrix.loc[log_var, lab_var]
+            
+            if not pd.isna(r) and not pd.isna(p) and r <= -min_correlation and p <= significance_level:
+                negative_correlations.append((log_var, lab_var, r, p, n))
+    
+    # Sort correlations by strength (absolute value)
+    positive_correlations.sort(key=lambda x: x[2], reverse=True)  # r is at index 2
+    negative_correlations.sort(key=lambda x: x[2])  # Sort negative from strongest (most negative) to weakest
+    
+    # Create visualizations for positive correlations
+    if positive_correlations:
+        print(f"\nPOSITIVE SIGNIFICANT CORRELATIONS (r ≥ {min_correlation}, p ≤ {significance_level}):")
+        for log_var, lab_var, r, p, n in positive_correlations:
+            print(f"{log_var} ↔ {lab_var}: r = {r:.3f} (p = {p:.4f}, n = {n})")
+        
+        pos_fig = create_correlation_figure(data, positive_correlations, "Positive", significance_level)
+    else:
+        print(f"\n No significant positive correlations found (r ≥ {min_correlation}, p ≤ {significance_level})")
+    
+    # Create visualizations for negative correlations
+    if negative_correlations:
+        print(f"\nNEGATIVE SIGNIFICANT CORRELATIONS (r ≤ -{min_correlation}, p ≤ {significance_level}):")
+        for log_var, lab_var, r, p, n in negative_correlations:
+            print(f"{log_var} ↔ {lab_var}: r = {r:.3f} (p = {p:.4f}, n = {n})")
+            
+        neg_fig = create_correlation_figure(data, negative_correlations, "Negative", significance_level)
+    else:
+        print(f"\n No significant negative correlations found (r ≤ -{min_correlation}, p ≤ {significance_level})")
+    
+    return {
+        "positive_correlations": positive_correlations,
+        "negative_correlations": negative_correlations
+    }
+
+def create_distribution_grid(data, variables, ncols=4, figsize_per_plot=(4, 3)):
+    """Create efficient grid of distribution plots instead of individual loops"""
+    
+    n_vars = len(variables)
+    nrows = (n_vars + ncols - 1) // ncols
+    
+    fig, axes = plt.subplots(nrows, ncols, 
+                            figsize=(figsize_per_plot[0] * ncols, figsize_per_plot[1] * nrows))
+    
+    # Handle single row case
+    if nrows == 1:
+        axes = [axes] if ncols == 1 else axes
+    else:
+        axes = axes.flatten()
+    
+    for i, var in enumerate(variables):
+        if i < len(axes):
+            # Clean data and create histogram
+            clean_data = data[var].dropna()
+            
+            if len(clean_data) > 0:
+                sns.histplot(clean_data, bins=30, kde=True, ax=axes[i])
+                axes[i].set_title(f"{var.replace('Lab_', '').replace('Log_', '')}", fontsize=10)
+                axes[i].set_xlabel(var, fontsize=8)
+                axes[i].set_ylabel("Count", fontsize=8)
+                axes[i].tick_params(labelsize=8)
+                
+                # Add statistics text
+                axes[i].text(0.02, 0.98, 
+                           f'μ={clean_data.mean():.2f}\nσ={clean_data.std():.2f}\nn={len(clean_data)}',
+                           transform=axes[i].transAxes, fontsize=7, 
+                           verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+            else:
+                axes[i].text(0.5, 0.5, 'No Data', transform=axes[i].transAxes, 
+                           ha='center', va='center', fontsize=12)
+                axes[i].set_title(f"{var} (No Data)")
+    
+    # Hide empty subplots
+    for i in range(n_vars, len(axes)):
+        axes[i].set_visible(False)
+    
+    plt.tight_layout()
+    return fig
+
+def create_enhanced_correlation_heatmap(correlation_results, significance_level=0.05):
+    """Create correlation heatmap with significance masking"""
+    
+    # Get correlation matrix and p-values
+    corr_matrix = correlation_results['pearson_r']
+    p_matrix = correlation_results['pearson_p']
+    n_matrix = correlation_results['n_samples']
+    
+    # Create significance mask
+    significance_mask = (p_matrix > significance_level) | pd.isna(p_matrix)
+    
+    # Reset matplotlib figure to ensure clean slate
+    plt.clf()
+    plt.close('all')
+    
+    # Create a new figure
+    plt.figure(figsize=(24, 24))
+    
+    # Create the heatmap directly on the current figure
+    heatmap = sns.heatmap(corr_matrix, 
+                annot=True, 
+                cmap='RdYlGn', 
+                vmin=-1, vmax=1,
+                linewidths=0.5,
+                fmt='.2f',
+                annot_kws={'size': 20},
+                mask=significance_mask,  # Mask non-significant
+                cbar_kws={"shrink": 0.8})
+    
+    # Set titles and labels
+    plt.title(f'Significant Correlations Only (p ≤ {significance_level})', fontsize=25)
+    plt.xlabel('Lab Measurements', fontsize=25)
+    plt.ylabel('Log Measurements', fontsize=25)
+    
+    # Adjust x and y tick labels
+    plt.xticks(rotation=45, ha='right', fontsize=20)
+    plt.yticks(fontsize=20, rotation=0)
+    
+    # Adjust layout
+    plt.tight_layout()
+    
+    # Save and display
+    plt.savefig('enhanced_correlation_heatmap.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    
+    # Print summary of significant correlations
+    significant_count = (~significance_mask).sum().sum()
+    total_count = (~pd.isna(corr_matrix)).sum().sum()
+    
+    print(f"\nCORRELATION HEATMAP SUMMARY:")
+    print(f"Total correlations: {total_count}")
+    print(f"Significant correlations: {significant_count}")
+    print(f"Significance rate: {(significant_count/total_count)*100:.1f}%")
+    
+    # Find and display strongest correlations
+    strong_correlations = []
+    for i in corr_matrix.index:
+        for j in corr_matrix.columns:
+            r = corr_matrix.loc[i, j]
+            p = p_matrix.loc[i, j]
+            if not pd.isna(r) and not pd.isna(p) and abs(r) >= 0.6 and p <= significance_level:
+                strong_correlations.append((i, j, r, p))
+    
+    if strong_correlations:
+        print(f"\nSTRONGEST SIGNIFICANT CORRELATIONS:")
+        for log_var, lab_var, r, p in sorted(strong_correlations, key=lambda x: abs(x[2]), reverse=True):
+            print(f"{log_var} ↔ {lab_var}: r={r:.3f} (p={p:.4f})")
+    else:
+        print(f"\nNo strong significant correlations found (|r| ≥ 0.6, p ≤ {significance_level})")
+
+
+def enhanced_correlation_analysis(data, log_vars, lab_vars, significance_level=0.05):
+    """Enhanced correlation with multiple statistics and significance testing"""
+    
+    # Initialize results dictionary
+    results = {
+        'pearson_r': pd.DataFrame(index=log_vars, columns=lab_vars, dtype=float),
+        'pearson_p': pd.DataFrame(index=log_vars, columns=lab_vars, dtype=float),
+        'spearman_r': pd.DataFrame(index=log_vars, columns=lab_vars, dtype=float),
+        'spearman_p': pd.DataFrame(index=log_vars, columns=lab_vars, dtype=float),
+        'n_samples': pd.DataFrame(index=log_vars, columns=lab_vars, dtype=int)
+    }
+    
+    print("🔬 ENHANCED CORRELATION ANALYSIS:")
+    print("=" * 40)
+    
+    significant_correlations = []
+    
+    for log_var in log_vars:
+        for lab_var in lab_vars:
+            # Get clean data pairs
+            clean_data = data[[log_var, lab_var]].dropna()
+            n = len(clean_data)
+            
+            if n < 3:  # Need minimum 3 points for correlation
+                continue
+                
+            try:
+                # Calculate Pearson correlation
+                pearson_r, pearson_p = pearsonr(clean_data[log_var], clean_data[lab_var])
+                
+                # Calculate Spearman correlation (rank-based, more robust)
+                spearman_r, spearman_p = spearmanr(clean_data[log_var], clean_data[lab_var])
+                
+                # Store results
+                results['pearson_r'].loc[log_var, lab_var] = pearson_r
+                results['pearson_p'].loc[log_var, lab_var] = pearson_p
+                results['spearman_r'].loc[log_var, lab_var] = spearman_r
+                results['spearman_p'].loc[log_var, lab_var] = spearman_p
+                results['n_samples'].loc[log_var, lab_var] = n
+                
+                # Check for statistical significance and strong correlation
+                if pearson_p <= significance_level and abs(pearson_r) >= 0.6:
+                    significant_correlations.append({
+                        'log_var': log_var,
+                        'lab_var': lab_var,
+                        'pearson_r': pearson_r,
+                        'pearson_p': pearson_p,
+                        'spearman_r': spearman_r,
+                        'n_samples': n
+                    })
+                    
+            except Exception as e:
+                print(f"  Error calculating correlation for {log_var} vs {lab_var}: {e}")
+                continue
+    
+    # Display significant correlations
+    print(f"\n🎯 SIGNIFICANT STRONG CORRELATIONS (|r| ≥ 0.6, p ≤ {significance_level}):")
+    if significant_correlations:
+        for corr in sorted(significant_correlations, key=lambda x: abs(x['pearson_r']), reverse=True):
+            print(f"{corr['log_var']} ↔ {corr['lab_var']}: "
+                  f"r={corr['pearson_r']:.3f} (p={corr['pearson_p']:.3f}, n={corr['n_samples']})")
+    else:
+        print("    No significant strong correlations found")
+    
+    # Summary statistics
+    all_r = results['pearson_r'].values.flatten()
+    all_r = all_r[~pd.isna(all_r)]
+    
+    print(f"\n CORRELATION SUMMARY:")
+    print(f"Total correlations calculated: {len(all_r)}")
+    print(f"Mean |r|: {np.abs(all_r).mean():.3f}")
+    print(f"Strong correlations (|r| ≥ 0.6): {(np.abs(all_r) >= 0.6).sum()}")
+    print(f"Moderate correlations (0.3 ≤ |r| < 0.6): {((np.abs(all_r) >= 0.3) & (np.abs(all_r) < 0.6)).sum()}")
+    
+    return results

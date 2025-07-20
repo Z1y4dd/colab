@@ -181,7 +181,7 @@ Log Range: 14305.0 - 15820.0 ft
    • CALZ       | Units: in | Dim: [1]
    • CHT        | Cable head tension             | Units: lbf
    • CN         | Compensated neutron porosity   | Units: pu *
-   • CNC        | Borehole size corrected compensated neutron porosity | Units: pu *
+   • CNC        | Borehole size (corrected compensated neutron porosity) | Units: pu *
    • CVOL       | Cement volume                  | Units: ft3
    • GR         | Gamma ray                      | Units: gAPI *
    • GRSL       | Gamma ray from 1329 spectrum   | Units: gAPI *
