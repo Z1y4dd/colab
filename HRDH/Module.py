@@ -10,7 +10,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr, spearmanr
 
-
+# loading dlis files
 def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
     """
     Load DLIS file and return a DataFrame with well log data.
@@ -299,7 +299,6 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
         traceback.print_exc() if verbose else None
         return pd.DataFrame()
 
-def load_and_validate_dlis(path, **kwargs):
     """Wrapper function with additional validation"""
     try:
         df = dlis_to_df(path, **kwargs)
@@ -319,483 +318,6 @@ def load_and_validate_dlis(path, **kwargs):
     except Exception as e:
         print(f" Load and validation failed: {e}")
         return pd.DataFrame()
-
-def load_full_dsl_log(
-
-    root_dir: str,
-    channels: list[str] | None = None,
-    frame_idx: int = 0,
-    priority_folders: list[str] | None = None
-) -> tuple[pd.DataFrame, dict]:
-    """
-    Discover, filter, load, and concatenate DSL-based DLIS files into one continuous log.
-
-    Args:
-        root_dir: Root directory to search for .dlis files.
-        channels: List of curve mnemonics to extract (None => all).
-        frame_idx: Frame index to use for each DLIS.
-        priority_folders: Ordered list of folder names to prefer when duplicates exist.
-
-    Returns:
-        full_log: DataFrame indexed by depth with concatenated log curves.
-        metadata: Dictionary containing detailed loading information.
-    """
-    # 1. Discover all DLIS files
-    found_files = glob.glob(f"{root_dir}/**/*.dlis", recursive=True)
-    print(f" Found {len(found_files)} total DLIS files")
-
-    # 2. Filter to DSL files only
-    dsl_files = [f for f in found_files if "-DSL" in Path(f).stem]
-    print(f" Found {len(dsl_files)} DSL-specific files")
-
-    if len(dsl_files) == 0:
-        print(" No DSL files found!")
-        return pd.DataFrame(), {"error": "No DSL files found"}
-
-    # 3. Group by file stem to find duplicates
-    stems = {}
-    for f in dsl_files:
-        stem = Path(f).stem
-        stems.setdefault(stem, []).append(f)
-
-    # 4. Select one file per stem based on priority_folders
-    selected_files = []
-    ignored_duplicates = []
-
-    if priority_folders is None:
-        priority_folders = ["Deliverables"]
-
-    for stem, files in stems.items():
-        if len(files) > 1:
-            print(f"🔄 Multiple files found for {stem}: {len(files)} files")
-            
-        # pick highest-priority file
-        selected = None
-        for folder in priority_folders:
-            for f in files:
-                if folder in f:
-                    selected = f
-                    print(f"✅ Selected {Path(f).name} (priority: {folder})")
-                    break
-            if selected:
-                break
-        if not selected:
-            selected = files[0]
-            print(f" No priority match for {stem}, using first file: {Path(selected).name}")
-            
-        selected_files.append(selected)
-        # record ignored duplicates
-        ignored_duplicates.extend([f for f in files if f != selected])
-
-    print(f"📁 Selected {len(selected_files)} files for loading")
-    print(f"🗑️ Ignored {len(ignored_duplicates)} duplicate files")
-
-    # 5. Load each selected file into a DataFrame - FIXED PARAMETER NAMES
-    dfs = []
-    load_meta = []
-    
-    for i, f in enumerate(selected_files):
-        try:
-            print(f"\n🔧 Loading file {i+1}/{len(selected_files)}: {Path(f).name}")
-            
-            # FIXED: Use correct parameter names matching your Module's dlis_to_df function
-            # Parameters: ['path', 'needed', 'frame_index', 'verbose']
-            df = dlis_to_df(
-                path=f, 
-                needed=channels,        
-                frame_index=frame_idx,  
-                verbose=True            
-            )
-            
-            # Handle the case where your function might return tuple or just DataFrame
-            if isinstance(df, tuple):
-                df, meta = df
-                load_meta.append(meta)
-            else:
-                # If no metadata returned, create basic metadata
-                meta = {
-                    'path': f,
-                    'shape': df.shape,
-                    'columns': list(df.columns) if not df.empty else [],
-                    'depth_range': (df.index.min(), df.index.max()) if not df.empty else (None, None)
-                }
-                load_meta.append(meta)
-            
-            if not df.empty:
-                print(f"✅ Loaded: {df.shape[0]} samples × {df.shape[1]} channels")
-                print(f"Depth range: {df.index.min():.1f} - {df.index.max():.1f} ft")
-                dfs.append(df)
-            else:
-                print(f" Empty DataFrame returned for {Path(f).name}")
-                
-        except Exception as e:
-            print(f" Error loading {Path(f).name}: {e}")
-            # Print more detailed error for debugging
-            import traceback
-            print(f"   Full error: {traceback.format_exc()}")
-            continue
-
-    # 6. Concatenate and deduplicate by depth index
-    if dfs:
-        print(f"\n🔗 Concatenating {len(dfs)} DataFrames...")
-        
-        # Concatenate with error handling
-        try:
-            full_log = pd.concat(dfs, sort=True).sort_index()
-            
-            # Check for depth duplicates
-            duplicates_before = full_log.index.duplicated().sum()
-            if duplicates_before > 0:
-                print(f" Found {duplicates_before} duplicate depths, removing...")
-                full_log = full_log[~full_log.index.duplicated(keep='first')]
-                
-            print(f"✅ Final combined log: {full_log.shape[0]} samples × {full_log.shape[1]} channels")
-            print(f"   Combined depth range: {full_log.index.min():.1f} - {full_log.index.max():.1f} ft")
-            
-        except Exception as e:
-            print(f" Error concatenating DataFrames: {e}")
-            full_log = pd.DataFrame()
-    else:
-        print(" No valid DataFrames to concatenate")
-        full_log = pd.DataFrame()
-
-    # 7. Compile metadata
-    metadata = {
-        "found_files": found_files,
-        "dsl_files": dsl_files,
-        "selected_files": selected_files,
-        "ignored_duplicates": ignored_duplicates,
-        "load_meta": load_meta,
-        "summary": {
-            "total_files_found": len(found_files),
-            "dsl_files_found": len(dsl_files),
-            "files_loaded": len(dfs),
-            "files_failed": len(selected_files) - len(dfs),
-            "final_shape": full_log.shape if not full_log.empty else (0, 0)
-        }
-    }
-
-    return full_log, metadata
-
-def load_full_log(
-    root_dir: str,
-    file_type: str = "dsl",  # Options: "dsl", "dlis", "all"
-    channels: list[str] | None = None,
-    frame_idx: int = 0,
-    priority_folders: list[str] | None = None
-) -> tuple[pd.DataFrame, dict]:
-    """
-    Discover, filter, load, and concatenate DLIS files into one continuous log.
-    
-    Args:
-        root_dir: Root directory to search for .dlis files.
-        file_type: Type of files to load:
-                  "dsl" - Only DSL files (with "-DSL" in the name)
-                  "dlis" - Only non-DSL files (without "-DSL" in the name)
-                  "all" - All DLIS files regardless of naming
-        channels: List of curve mnemonics to extract (None => all).
-        frame_idx: Frame index to use for each DLIS.
-        priority_folders: Ordered list of folder names to prefer when duplicates exist.
-
-    Returns:
-        full_log: DataFrame indexed by depth with concatenated log curves.
-        metadata: Dictionary containing detailed loading information.
-    """
-    # 1. Discover all DLIS files
-    found_files = glob.glob(f"{root_dir}/**/*.dlis", recursive=True)
-    print(f" Found {len(found_files)} total DLIS files")
-
-    # 2. Filter files based on file_type parameter
-    if file_type.lower() == "dsl":
-        filtered_files = [f for f in found_files if "-DSL" in Path(f).stem]
-        print(f" Filtered to {len(filtered_files)} DSL-specific files")
-    elif file_type.lower() == "dlis":
-        filtered_files = [f for f in found_files if "-DSL" not in Path(f).stem]
-        print(f" Filtered to {len(filtered_files)} non-DSL DLIS files")
-    else:  # "all"
-        filtered_files = found_files
-        print(f" Using all {len(filtered_files)} DLIS files")
-
-    if len(filtered_files) == 0:
-        print(f" No {file_type.upper()} files found!")
-        return pd.DataFrame(), {"error": f"No {file_type.upper()} files found"}
-
-    # 3. Group by file stem to find duplicates
-    stems = {}
-    for f in filtered_files:
-        stem = Path(f).stem
-        stems.setdefault(stem, []).append(f)
-
-    # 4. Select one file per stem based on priority_folders
-    selected_files = []
-    ignored_duplicates = []
-
-    if priority_folders is None:
-        priority_folders = ["Deliverables", "FJA"]
-
-    for stem, files in stems.items():
-        if len(files) > 1:
-            print(f"🔄 Multiple files found for {stem}: {len(files)} files")
-            
-        # pick highest-priority file
-        selected = None
-        for folder in priority_folders:
-            for f in files:
-                if folder in f:
-                    selected = f
-                    print(f"✅ Selected {Path(f).name} (priority: {folder})")
-                    break
-            if selected:
-                break
-        if not selected:
-            selected = files[0]
-            print(f" No priority match for {stem}, using first file: {Path(selected).name}")
-            
-        selected_files.append(selected)
-        # record ignored duplicates
-        ignored_duplicates.extend([f for f in files if f != selected])
-
-    print(f"📁 Selected {len(selected_files)} files for loading")
-    print(f"🗑️ Ignored {len(ignored_duplicates)} duplicate files")
-
-    # 5. Load each selected file into a DataFrame
-    dfs = []
-    load_meta = []
-    
-    for i, f in enumerate(selected_files):
-        try:
-            print(f"\n🔧 Loading file {i+1}/{len(selected_files)}: {Path(f).name}")
-            
-            # Try to load with robust error handling
-            try:
-                # Use custom error handler to handle corrupted files
-                from dlisio import dlis
-                
-                # Configure error handler for corrupt files
-                error_handler = None
-                # try:
-                #     error_handler = dlis.ErrorHandler(
-                #         critical=dlis.actions.IGNORE,
-                #         major=dlis.actions.IGNORE,
-                #         minor=dlis.actions.IGNORE
-                #     )
-                # except Exception:
-                #     # Older dlisio versions might not support this
-                #     pass
-                
-                # Load with appropriate parameters
-                if error_handler:
-                    df = dlis_to_df(
-                        path=f, 
-                        needed=channels,        
-                        frame_index=frame_idx,  
-                        verbose=True,
-                        error_handler=error_handler
-                    )
-                else:
-                    df = dlis_to_df(
-                        path=f, 
-                        needed=channels,        
-                        frame_index=frame_idx,  
-                        verbose=True            
-                    )
-            except TypeError:
-                # Fallback if error_handler parameter isn't supported
-                df = dlis_to_df(
-                    path=f, 
-                    needed=channels,        
-                    frame_index=frame_idx,  
-                    verbose=True            
-                )
-            
-            # Handle the case where your function might return tuple or just DataFrame
-            if isinstance(df, tuple):
-                df, meta = df
-                load_meta.append(meta)
-            else:
-                # If no metadata returned, create basic metadata
-                meta = {
-                    'path': f,
-                    'shape': df.shape,
-                    'columns': list(df.columns) if not df.empty else [],
-                    'depth_range': (df.index.min(), df.index.max()) if not df.empty else (None, None)
-                }
-                load_meta.append(meta)
-            
-            if not df.empty:
-                print(f"✅ Loaded: {df.shape[0]} samples × {df.shape[1]} channels")
-                print(f"Depth range: {df.index.min():.1f} - {df.index.max():.1f} ft")
-                dfs.append(df)
-            else:
-                print(f" Empty DataFrame returned for {Path(f).name}")
-                
-        except Exception as e:
-            print(f" Error loading {Path(f).name}: {e}")
-            # Print more detailed error for debugging
-            import traceback
-            print(f"   Full error: {traceback.format_exc()}")
-            continue
-
-    # 6. Concatenate and deduplicate by depth index
-    if dfs:
-        print(f"\n🔗 Concatenating {len(dfs)} DataFrames...")
-        
-        # Concatenate with error handling
-        try:
-            full_log = pd.concat(dfs, sort=True).sort_index()
-            
-            # Check for depth duplicates
-            duplicates_before = full_log.index.duplicated().sum()
-            if duplicates_before > 0:
-                print(f" Found {duplicates_before} duplicate depths, removing...")
-                full_log = full_log[~full_log.index.duplicated(keep='first')]
-                
-            print(f"✅ Final combined log: {full_log.shape[0]} samples × {full_log.shape[1]} channels")
-            print(f"   Combined depth range: {full_log.index.min():.1f} - {full_log.index.max():.1f} ft")
-            
-        except Exception as e:
-            print(f" Error concatenating DataFrames: {e}")
-            full_log = pd.DataFrame()
-    else:
-        print(" No valid DataFrames to concatenate")
-        full_log = pd.DataFrame()
-
-    # 7. Compile metadata
-    metadata = {
-        "found_files": found_files,
-        "filtered_files": filtered_files,
-        "selected_files": selected_files,
-        "ignored_duplicates": ignored_duplicates,
-        "file_type": file_type,
-        "load_meta": load_meta,
-        "summary": {
-            "total_files_found": len(found_files),
-            "filtered_files_found": len(filtered_files),
-            "files_loaded": len(dfs),
-            "files_failed": len(selected_files) - len(dfs),
-            "final_shape": full_log.shape if not full_log.empty else (0, 0)
-        }
-    }
-
-    # Consolidate channel descriptions if available
-    all_channel_descriptions = {}
-    for file_meta in load_meta:
-        if 'channel_descriptions' in file_meta:
-            all_channel_descriptions.update(file_meta['channel_descriptions'])
-    
-    metadata['consolidated_channel_descriptions'] = all_channel_descriptions
-
-    return full_log, metadata
-
-def match_lab_to_log(log_df, lab_df, tol=0.1):
-    """
-    For each lab depth, find the nearest log depth within `tol`.
-    Returns at most len(lab_df) matched pairs.
-    Adds columns for Distance and Match_Type.
-    """
-    print(f"\nFUNCTION START - INPUT VALIDATION:")
-    print(f"Log DataFrame shape: {log_df.shape}")
-    print(f"Lab DataFrame shape: {lab_df.shape}")
-    
-    # Ensure unique indices
-    log = log_df[~log_df.index.duplicated(keep='first')]
-    lab = lab_df[~lab_df.index.duplicated(keep='first')]
-    
-    print(f"After deduplication - Log: {len(log)}, Lab: {len(lab)}")
-    
-    if len(log) == 0 or len(lab) == 0:
-        print(" ERROR: Empty datasets after deduplication!")
-        return pd.DataFrame()
-    
-    # Convert to float64 arrays
-    log_depths = np.array(log.index.values, dtype=np.float64).reshape(-1, 1)
-    lab_depths = np.array(lab.index.values, dtype=np.float64).reshape(-1, 1)
-    
-    # print(f"Log depths sample: {log_depths[:3].flatten()}")
-    # print(f"Lab depths sample: {lab_depths[:3].flatten()}")
-    
-    # Build KD-Tree on log depths
-    tree = cKDTree(log_depths)
-    
-    # Query each lab depth
-    dists, idxs = tree.query(lab_depths, distance_upper_bound=tol)
-    
-    # FIXED: Check for finite distances (successful matches)
-    mask = np.isfinite(dists)
-    
-    print(f"Lab depths range: {lab_depths.min():.2f} - {lab_depths.max():.2f}")
-    print(f"Log depths range: {log_depths.min():.2f} - {log_depths.max():.2f}")
-    print(f"Tolerance: {tol} ft")
-    print(f"Valid matches found: {mask.sum()}/{len(mask)}")
-    
-    if mask.sum() > 0:
-        print(f"Min distance: {dists[mask].min():.2f} ft")
-        print(f"Max distance: {dists[mask].max():.2f} ft")
-        
-        # DETAILED MATCH VERIFICATION
-        print(f"\nMATCH VERIFICATION:")
-        for i in range(min(24, mask.sum())):
-            match_idx = np.where(mask)[0][i]
-            lab_depth = lab_depths[match_idx][0]
-            log_idx = idxs[match_idx]
-            log_depth = log_depths[log_idx][0]
-            distance = dists[match_idx]
-            print(f"   Match {i+1}: Lab {lab_depth:.2f} → Log {log_depth:.2f} (Δ{distance:.2f} ft)")
-    
-    if mask.sum() == 0:
-        print(" No matches found within tolerance!")
-        # Try with larger tolerance for diagnosis
-        dists_large, idxs_large = tree.query(lab_depths, distance_upper_bound=1.0)
-        mask_large = np.isfinite(dists_large)
-        
-        if mask_large.sum() > 0:
-            print(f"\nCLOSEST MATCHES (within 1.0 ft):")
-            for i in range(min(5, mask_large.sum())):
-                match_idx = np.where(mask_large)[0][i]
-                lab_depth = lab_depths[match_idx][0]
-                log_idx = idxs_large[match_idx]
-                log_depth = log_depths[log_idx][0]
-                distance = dists_large[match_idx]
-                print(f"   Lab {lab_depth:.2f} → Log {log_depth:.2f} (Δ{distance:.2f} ft)")
-        
-        return pd.DataFrame()
-    
-    # Get matched samples - FIXED: Only include valid matches
-    matched_lab_indices = np.where(mask)[0]
-    matched_log_indices = idxs[mask]
-    
-    matched_lab = lab.iloc[matched_lab_indices].reset_index()
-    matched_log = log.iloc[matched_log_indices].reset_index()
-    
-    print(f"Matched samples extracted: {len(matched_lab)} pairs")
-    
-    # Rename depth columns and add prefixes
-    matched_lab = matched_lab.rename(columns={matched_lab.columns[0]: 'Lab_Depth'})
-    matched_log = matched_log.rename(columns={matched_log.columns[0]: 'Log_Depth'})
-    
-    # Add prefixes to avoid column name conflicts
-    lab_cols = ['Lab_Depth'] + [f'Lab_{col}' for col in matched_lab.columns[1:]]
-    log_cols = ['Log_Depth'] + [f'Log_{col}' for col in matched_log.columns[1:]]
-    
-    matched_lab.columns = lab_cols
-    matched_log.columns = log_cols
-
-    # Concatenate side-by-side
-    joined_df = pd.concat([matched_lab, matched_log], axis=1)
-    
-    # Add distance column - CALCULATE ACTUAL DISTANCES
-    joined_df['Distance'] = np.abs(joined_df['Lab_Depth'] - joined_df['Log_Depth'])
-    
-    # Add match type column
-    joined_df['Match_Type'] = np.where(joined_df['Distance'] == 0, 'Exact', 'Near')
-    
-    # VERIFICATION: Show actual matches
-    # print(f"\n✅ FINAL VERIFICATION - First 5 matches:")
-    # for i in range(min(5, len(joined_df))):
-    #     row = joined_df.iloc[i]
-    #     print(f"   Lab: {row['Lab_Depth']:.2f} → Log: {row['Log_Depth']:.2f} (Δ{row['Distance']:.2f} ft)")
-    
-    return joined_df
 
 def load_dlis_files_from_list(
     file_paths: list[str],
@@ -839,7 +361,7 @@ def load_dlis_files_from_list(
     vprint("=" * 50)
     
     # 1. Validate input file paths
-    vprint(f"\n📋 STEP 1: VALIDATING FILE PATHS")
+    vprint(f"\n STEP 1: VALIDATING FILE PATHS")
     vprint("-" * 30)
     
     valid_paths = []
@@ -1018,7 +540,118 @@ def load_dlis_files_from_list(
         metadata['all_channels_found'] = sorted(list(all_channels))
     
     return result_df, metadata
+# joining depth
+def match_lab_to_log(log_df, lab_df, tol=0.1):
+    """
+    For each lab depth, find the nearest log depth within `tol`.
+    Returns at most len(lab_df) matched pairs.
+    Adds columns for Distance and Match_Type.
+    """
+    print(f"\nFUNCTION START - INPUT VALIDATION:")
+    print(f"Log DataFrame shape: {log_df.shape}")
+    print(f"Lab DataFrame shape: {lab_df.shape}")
+    
+    # Ensure unique indices
+    log = log_df[~log_df.index.duplicated(keep='first')]
+    lab = lab_df[~lab_df.index.duplicated(keep='first')]
+    
+    print(f"After deduplication - Log: {len(log)}, Lab: {len(lab)}")
+    
+    if len(log) == 0 or len(lab) == 0:
+        print(" ERROR: Empty datasets after deduplication!")
+        return pd.DataFrame()
+    
+    # Convert to float64 arrays
+    log_depths = np.array(log.index.values, dtype=np.float64).reshape(-1, 1)
+    lab_depths = np.array(lab.index.values, dtype=np.float64).reshape(-1, 1)
+    
+    # print(f"Log depths sample: {log_depths[:3].flatten()}")
+    # print(f"Lab depths sample: {lab_depths[:3].flatten()}")
+    
+    # Build KD-Tree on log depths
+    tree = cKDTree(log_depths)
+    
+    # Query each lab depth
+    dists, idxs = tree.query(lab_depths, distance_upper_bound=tol)
+    
+    # FIXED: Check for finite distances (successful matches)
+    mask = np.isfinite(dists)
+    
+    print(f"Lab depths range: {lab_depths.min():.2f} - {lab_depths.max():.2f}")
+    print(f"Log depths range: {log_depths.min():.2f} - {log_depths.max():.2f}")
+    print(f"Tolerance: {tol} ft")
+    print(f"Valid matches found: {mask.sum()}/{len(mask)}")
+    
+    if mask.sum() > 0:
+        print(f"Min distance: {dists[mask].min():.2f} ft")
+        print(f"Max distance: {dists[mask].max():.2f} ft")
+        
+        # DETAILED MATCH VERIFICATION
+        print(f"\nMATCH VERIFICATION:")
+        for i in range(min(24, mask.sum())):
+            match_idx = np.where(mask)[0][i]
+            lab_depth = lab_depths[match_idx][0]
+            log_idx = idxs[match_idx]
+            log_depth = log_depths[log_idx][0]
+            distance = dists[match_idx]
+            print(f"   Match {i+1}: Lab {lab_depth:.2f} → Log {log_depth:.2f} (Δ{distance:.2f} ft)")
+    
+    if mask.sum() == 0:
+        print(" No matches found within tolerance!")
+        # Try with larger tolerance for diagnosis
+        dists_large, idxs_large = tree.query(lab_depths, distance_upper_bound=1.0)
+        mask_large = np.isfinite(dists_large)
+        
+        if mask_large.sum() > 0:
+            print(f"\nCLOSEST MATCHES (within 1.0 ft):")
+            for i in range(min(5, mask_large.sum())):
+                match_idx = np.where(mask_large)[0][i]
+                lab_depth = lab_depths[match_idx][0]
+                log_idx = idxs_large[match_idx]
+                log_depth = log_depths[log_idx][0]
+                distance = dists_large[match_idx]
+                print(f"   Lab {lab_depth:.2f} → Log {log_depth:.2f} (Δ{distance:.2f} ft)")
+        
+        return pd.DataFrame()
+    
+    # Get matched samples - FIXED: Only include valid matches
+    matched_lab_indices = np.where(mask)[0]
+    matched_log_indices = idxs[mask]
+    
+    matched_lab = lab.iloc[matched_lab_indices].reset_index()
+    matched_log = log.iloc[matched_log_indices].reset_index()
+    
+    print(f"Matched samples extracted: {len(matched_lab)} pairs")
+    
+    # Rename depth columns and add prefixes
+    matched_lab = matched_lab.rename(columns={matched_lab.columns[0]: 'Lab_Depth'})
+    matched_log = matched_log.rename(columns={matched_log.columns[0]: 'Log_Depth'})
+    
+    # Add prefixes to avoid column name conflicts
+    lab_cols = ['Lab_Depth'] + [f'Lab_{col}' for col in matched_lab.columns[1:]]
+    log_cols = ['Log_Depth'] + [f'Log_{col}' for col in matched_log.columns[1:]]
+    
+    matched_lab.columns = lab_cols
+    matched_log.columns = log_cols
 
+    # Concatenate side-by-side
+    joined_df = pd.concat([matched_lab, matched_log], axis=1)
+    
+    # Add distance column - CALCULATE ACTUAL DISTANCES
+    joined_df['Distance'] = np.abs(joined_df['Lab_Depth'] - joined_df['Log_Depth'])
+    
+    # Add match type column
+    joined_df['Match_Type'] = np.where(joined_df['Distance'] == 0, 'Exact', 'Near')
+    
+    # VERIFICATION: Show actual matches
+    # print(f"\n✅ FINAL VERIFICATION - First 5 matches:")
+    # for i in range(min(5, len(joined_df))):
+    #     row = joined_df.iloc[i]
+    #     print(f"   Lab: {row['Lab_Depth']:.2f} → Log: {row['Log_Depth']:.2f} (Δ{row['Distance']:.2f} ft)")
+    
+    return joined_df
+
+# summary
 def create_log_summary(log_df):
     """Generate a comprehensive summary of well log data"""
     import numpy as np
@@ -1087,7 +720,7 @@ def create_log_summary(log_df):
         "avg_completeness": avg_completeness,
         "depth_sampling": avg_interval
     }
-
+# visuals
 def create_mineral_composition_bar(data, mineral_columns):
     """Create stacked bar chart of mineral composition by depth"""
     
@@ -1356,7 +989,7 @@ def create_composite_log_plot(data, log_vars, label_cols=None):
     plt.show()
     
     return fig
-
+# zscore
 def calculate_zscore(data, columns=None):
     """Calculate z-scores for specified columns
     
@@ -1416,7 +1049,7 @@ def calculate_zscore(data, columns=None):
     plt.tight_layout()
     plt.savefig('zscore_heatmap.png', dpi=300, bbox_inches='tight')
     plt.show()
-# zscore
+# visuals
 def enhanced_zscore_correlation_analysis(data, log_vars, lab_vars, significance_level=0.05):
     """Enhanced correlation with multiple statistics and significance testing for z-scores"""
     
@@ -1751,7 +1384,7 @@ def visualize_significant_correlations(data, correlation_results, significance_l
     
     # Create visualizations for positive correlations
     if positive_correlations:
-        print(f"\nPOSITIVE SIGNIFICANT CORRELATIONS (r ≥ {min_correlation}, p ≤ {significance_level}):")
+        print(f"\n🟢POSITIVE SIGNIFICANT CORRELATIONS (r ≥ {min_correlation}, p ≤ {significance_level}):")
         for log_var, lab_var, r, p, n in positive_correlations:
             print(f"{log_var} ↔ {lab_var}: r = {r:.3f} (p = {p:.4f}, n = {n})")
         
@@ -1761,7 +1394,7 @@ def visualize_significant_correlations(data, correlation_results, significance_l
     
     # Create visualizations for negative correlations
     if negative_correlations:
-        print(f"\nNEGATIVE SIGNIFICANT CORRELATIONS (r ≤ -{min_correlation}, p ≤ {significance_level}):")
+        print(f"\n🔴NEGATIVE SIGNIFICANT CORRELATIONS (r ≤ -{min_correlation}, p ≤ {significance_level}):")
         for log_var, lab_var, r, p, n in negative_correlations:
             print(f"{log_var} ↔ {lab_var}: r = {r:.3f} (p = {p:.4f}, n = {n})")
             
@@ -1972,8 +1605,8 @@ def create_enhanced_correlation_heatmap(correlation_results, significance_level=
     else:
         print(f"\nNo strong significant correlations found (|r| ≥ 0.6, p ≤ {significance_level})")
 
-
 def enhanced_correlation_analysis(data, log_vars, lab_vars, significance_level=0.05):
+    
     """Enhanced correlation with multiple statistics and significance testing"""
     
     # Initialize results dictionary
@@ -1985,7 +1618,7 @@ def enhanced_correlation_analysis(data, log_vars, lab_vars, significance_level=0
         'n_samples': pd.DataFrame(index=log_vars, columns=lab_vars, dtype=int)
     }
     
-    print("🔬 ENHANCED CORRELATION ANALYSIS:")
+    print("ENHANCED CORRELATION ANALYSIS:")
     print("=" * 40)
     
     significant_correlations = []
@@ -2029,7 +1662,7 @@ def enhanced_correlation_analysis(data, log_vars, lab_vars, significance_level=0
                 continue
     
     # Display significant correlations
-    print(f"\n🎯 SIGNIFICANT STRONG CORRELATIONS (|r| ≥ 0.6, p ≤ {significance_level}):")
+    print(f"\nSIGNIFICANT STRONG CORRELATIONS (|r| ≥ 0.6, p ≤ {significance_level}):")
     if significant_correlations:
         for corr in sorted(significant_correlations, key=lambda x: abs(x['pearson_r']), reverse=True):
             print(f"{corr['log_var']} ↔ {corr['lab_var']}: "

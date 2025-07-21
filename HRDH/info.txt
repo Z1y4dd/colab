@@ -177,15 +177,18 @@ Log Range: 14305.0 - 15820.0 ft
    • TDEP       | 0.250000 ft frame 0 depth      | Units: ft
    • BIT        | Bit size                       | Units: in
    • BVOL       | Borehole volume                | Units: ft3
+
    • CAL        | Caliper                        | Units: in
    • CALZ       | Units: in | Dim: [1]
    • CHT        | Cable head tension             | Units: lbf
    • CN         | Compensated neutron porosity   | Units: pu *
    • CNC        | Borehole size (corrected compensated neutron porosity) | Units: pu *
    • CVOL       | Cement volume                  | Units: ft3
+
    • GR         | Gamma ray                      | Units: gAPI *
    • GRSL       | Gamma ray from 1329 spectrum   | Units: gAPI *
    • GRSLC      | Gamma Ray Spectral (total spectral gamma ray)
+
    • KC         | Potassium Concentration
    • KTHC       | Potassium-Thorium ratio
    • RTHKC      | Thorium to Potassium ratio
@@ -203,6 +206,7 @@ Log Range: 14305.0 - 15820.0 ft
    • RTHK       | Ratio of thorium to potassium  | Units: 
    • RTHU       | Ratio of thorium to uranium    | Units: 
    • RUK        | Ratio of uranium to potassium  | Units: 
+
    • SFT2       | Long space spectrum count rate 100-140 keV | Units:* 
    • SHR        | Soft to hard count rate ratio (SOFT/HRD2) | Units: *
    • SLGN       | Gain value                     | Units: 
@@ -212,6 +216,7 @@ Log Range: 14305.0 - 15820.0 ft
    • SPD        | Speed                          | Units: ft/min
    • SSD        | Short space count rate         | Units: 
    • SSN        | Short space count rate         | Units: 1/s
+   
    • TEN        | Differential tension           | Units: lbf
    • TH         | Thorium concentration          | Units: ppm
    • TTEN       | Total tension                  | Units: lbf
