@@ -753,7 +753,9 @@ def create_mineral_composition_bar(data, mineral_columns):
     plt.grid(True, linestyle='--', alpha=0.7)
     
     plt.tight_layout()
-    plt.savefig('mineral_composition_vs_depth.png', dpi=300, bbox_inches='tight')
+    # plt.savefig('mineral_composition_vs_depth.png', dpi=300, bbox_inches='tight')
+    plt.savefig('imgs/mineral_composition_vs_depth.png', dpi=300, bbox_inches='tight')
+
     plt.show()
     
     return fig
@@ -825,7 +827,7 @@ def create_mineral_composition_bar(data, mineral_columns):
         cbar.set_label('Match Distance (ft)')
     
     plt.tight_layout()
-    plt.savefig('log_vs_mineral_scatterplots.png', dpi=300, bbox_inches='tight')
+    plt.savefig('imgs/log_vs_mineral_scatterplots.png', dpi=300, bbox_inches='tight')
     plt.show()
     
     return fig
@@ -875,7 +877,7 @@ def create_depth_trend_plots(data, variables, n_cols=3):
     fig.suptitle('Depth Trends of Key Variables', fontsize=16, y=1.02)
     
     plt.tight_layout()
-    plt.savefig('depth_trend_plots.png', dpi=300, bbox_inches='tight')
+    plt.savefig('imgs/depth_trend_plots.png', dpi=300, bbox_inches='tight')
     plt.show()
     
     return fig
@@ -985,7 +987,7 @@ def create_composite_log_plot(data, log_vars, label_cols=None):
     fig.suptitle('Composite Log', fontsize=16, y=1.02)
     
     plt.tight_layout()
-    plt.savefig('composite_log_plot.png', dpi=300, bbox_inches='tight')
+    plt.savefig('imgs/composite_log_plot.png', dpi=300, bbox_inches='tight')
     plt.show()
     
     return fig
@@ -1047,7 +1049,7 @@ def calculate_zscore(data, columns=None):
     plt.xticks(rotation=45, ha='right')
     
     plt.tight_layout()
-    plt.savefig('zscore_heatmap.png', dpi=300, bbox_inches='tight')
+    plt.savefig('imgs/zscore_heatmap.png', dpi=300, bbox_inches='tight')
     plt.show()
 # visuals
 def enhanced_zscore_correlation_analysis(data, log_vars, lab_vars, significance_level=0.05):
@@ -1170,7 +1172,7 @@ def create_zscore_enhanced_heatmap(correlation_results, significance_level=0.05)
     # Move the y-label to be more visible
     plt.gcf().axes[0].yaxis.set_label_coords(-0.15, 0.5)
     
-    plt.savefig('zscore_enhanced_correlation_heatmap.png', dpi=300, bbox_inches='tight')
+    plt.savefig('imgs/zscore_enhanced_correlation_heatmap.png', dpi=300, bbox_inches='tight')
     plt.show()
     
     # Print summary of significant correlations
@@ -1240,7 +1242,7 @@ def create_zscore_enhanced_heatmap(correlation_results, significance_level=0.05)
     plt.tight_layout()
     
     # Save and display
-    plt.savefig('enhanced_correlation_heatmap.png', dpi=300, bbox_inches='tight')
+    plt.savefig('imgs/enhanced_correlation_heatmap.png', dpi=300, bbox_inches='tight')
     plt.show()
     
     # Print summary of significant correlations
@@ -1343,7 +1345,7 @@ def create_correlation_figure(data, correlations, correlation_type, significance
     
     # Save the figure
     plt.tight_layout()
-    filename = f'{correlation_type.lower()}_correlations.png'
+    filename = f'imgs/{correlation_type.lower()}_correlations.png'
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     
     return fig
@@ -1577,7 +1579,7 @@ def create_enhanced_correlation_heatmap(correlation_results, significance_level=
     plt.tight_layout()
     
     # Save and display
-    plt.savefig('enhanced_correlation_heatmap.png', dpi=300, bbox_inches='tight')
+    plt.savefig('imgs/enhanced_correlation_heatmap.png', dpi=300, bbox_inches='tight')
     plt.show()
     
     # Print summary of significant correlations
