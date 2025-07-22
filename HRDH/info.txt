@@ -227,6 +227,36 @@ Log Range: 14305.0 - 15820.0 ft
    • ZDNC       | Borehole size/mud weight corrected density | Units: g/cm3 *
 
 
+    4. GLIT            | General lithology              | Dim: [1] | Units: 
+    5. GRSLC           | Gamma ray from 1329 spectrum, borehole corrected | Dim: [1] | Units: GAPI
+    6. GRDENMIN        | Grain density                  | Dim: [1] | Units: g/cc
+    7. KC              | Potassium content, borehole corrected | Dim: [1] | Units: %
+    8. KTHC            | Stripped potassium-thorium, borehole corrected | Dim: [1] | Units: GAPI
+    9. SLIT            | Specific lithology             | Dim: [1] | Units: 
+   10. TEN             | Differential tension           | Dim: [1] | Units: LBF
+   11. THC             | Thorium concentration, borehole corrected | Dim: [1] | Units: PPM
+   12. UC              | Uranium content, borehole corrected | Dim: [1] | Units: PPM
+   13. WANH            | Normalized weight fraction of anhydrite in dry rock | Dim: [1] | Units: w/w
+   14. WCARB           | Normalized weight fraction sum of carbonates in dry rock | Dim: [1] | Units: w/w
+   15. WCLAY           | Normalized weight fraction sum of clays in dry rock | Dim: [1] | Units: w/w
+   16. WCMAT           | Normalized weight fraction of organic carbon-in-matrix in dry rock | Dim: [1] | Units: w/w
+   17. WFAL            | Weight fraction of aluminum in dry rock | Dim: [1] | Units: w/w
+   18. WFC             | Weight fraction of carbon in whole rock | Dim: [1] | Units: w/w
+   19. WFCA            | Weight fraction of calcium in dry rock | Dim: [1] | Units: w/w
+   20. WFFE            | Weight fraction of iron in dry rock | Dim: [1] | Units: w/w
+   21. WFGD            | Weight fraction of gadolinium in dry rock | Dim: [1] | Units: w/w
+   22. WFMG            | Weight fraction of magnesium in dry rock | Dim: [1] | Units: w/w
+   23. WFS             | Weight fraction of sulfur in dry rock | Dim: [1] | Units: w/w
+   24. WFSI            | Weight fraction of silicon in dry rock | Dim: [1] | Units: w/w
+   25. WFTI            | Weight fraction of titanium in dry rock | Dim: [1] | Units: w/w
+   26. WPYR            | Normalized weight fraction of pyrite in dry rock | Dim: [1] | Units: w/w
+   27. WQFM            | Normalized weight fraction sum of Q-F-M in dry rock | Dim: [1] | Units: w/w
+   28. WSALT           | Normalized weight fraction sum of salts in dry rock | Dim: [1] | Units: w/w
+   29. WSID            | Normalized weight fraction of siderite in dry rock | Dim: [1] | Units: w/w
+
+
+
+
 well_name_0_09JAN2012_ZDL-CN-DSL_ML_BA.dlis
 │     │        │     │    │   └─ BA   ← “Basic ASCII” export variant
 │     │        │     │    └─ ML   ← Machine-log (raw) version
@@ -235,320 +265,9 @@ well_name_0_09JAN2012_ZDL-CN-DSL_ML_BA.dlis
 │     └─ ZDL  ← Gamma-ray curve mnemonic
 └─ 09JAN2012  ← Acquisition date
 
-Name
 
-Units
-
-Description
-
-0
-
-BIT
-
-in
-
-Bit size
-
-1
-
-BVOL
-
-ft3
-
-Borehole volume
-
-2
-
-CAL
-
-in
-
-Caliper
-
-3
-
-CALZ
-
-in
 
  
-
-4
-
-CHT
-
-lbf
-
-Cable head tension
-
-5
-
-CN
-
-pu
-
-Compensated neutron porosity
-
-6
-
-CNC
-
-pu
-
-Borehole size corrected compensated neutron porosity
-
-7
-
-CVOL
-
-ft3
-
-Cement volume
-
-8
-
-GR
-
-gAPI
-
-Gamma ray
-
-9
-
-GRSL
-
-gAPI
-
-Gamma ray from 1329 spectrum
-
-10
-
-HRD1
-
- 
-
-Long space spectrum count rate 140-200 keV
-
-11
-
-HRD2
-
- 
-
-Long space spectrum count rate 200-540 keV
-
-12
-
-K
-
-%
-
-Potassium content
-
-13
-
-KTH
-
-gAPI
-
-Stripped potassium-thorium
-
-14
-
-LSN
-
-1/s
-
-Long space neutron
-
-15
-
-PE
-
-b/e
-
-Photo electric cross-section
-
-16
-
-QPKS
-
- 
-
-Number of peaks found
-
-17
-
-RTHK
-
- 
-
-Ratio of thorium to potassium
-
-18
-
-RTHU
-
- 
-
-Ratio of thorium to uranium
-
-19
-
-RUK
-
- 
-
-Ratio of uranium to potassium
-
-20
-
-SFT2
-
- 
-
-Long space spectrum count rate 100-140 keV
-
-21
-
-SHR
-
- 
-
-Soft to hard count rate ratio (SOFT/HRD2)
-
-22
-
-SLGN
-
- 
-
-Gain value
-
-23
-
-SLSP
-
-1/s
-
-SL spectrum channels 1-254 (subset 0)
-
-24
-
-SLSPQ0
-
- 
-
-SL spectrum channels 1-254 (subset 0)
-
-25
-
-SLTM
-
-ms
-
-Delta elapsed time
-
-26
-
-SPD
-
-ft/min
-
-Speed
-
-27
-
-SSD
-
- 
-
-Short space count rate
-
-28
-
-SSN
-
-1/s
-
-Short space count rate
-
-29
-
-TEN
-
-lbf
-
-Differential tension
-
-30
-
-TH
-
-ppm
-
-Thorium concentration
-
-31
-
-TTEN
-
-lbf
-
-Total tension
-
-32
-
-U
-
-ppm
-
-Uranium content
-
-33
-
-WTBH
-
-degF
-
-Temperature of borehole
-
-34
-
-ZCOR
-
-g/cm3
-
-Density correction
-
-35
-
-ZDEN
-
-g/cm3
-
-Formation bulk density
-
-36
-
-ZDNC
-
-g/cm3
-
-Borehole size/mud weight corrected density
-
-37
-
-TDEP
-
-ft
-
-0.250000 ft frame 0 depth
-
-There are 38 available logs
---
-
-
 
 
 

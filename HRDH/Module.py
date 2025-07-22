@@ -680,11 +680,6 @@ def create_log_summary(log_df):
     min_interval = depth_intervals.min()
     max_interval = depth_intervals.max()
     
-    # Identify curve types
-    gr_curves = [col for col in log_df.columns if 'GR' in col.upper()]
-    density_curves = [col for col in log_df.columns if any(x in col.upper() for x in ['ZDEN', 'DENS', 'RHO'])]
-    neutron_curves = [col for col in log_df.columns if any(x in col.upper() for x in ['NPHI', 'NPOR', 'CN'])]
-    spectral_curves = [col for col in log_df.columns if any(x in col.upper() for x in ['K', 'U', 'TH', 'POT', 'URA', 'THOR'])]
     
     # Print summary report
     print("\n COMPREHENSIVE LOG DATA SUMMARY")
@@ -699,11 +694,7 @@ def create_log_summary(log_df):
     print(f"Total curves: {total_curves} measurement channels")
     print(f"Data density: {total_samples/depth_span:.1f} samples/ft")
     
-    print("\n MEASUREMENT TYPES:")
-    if gr_curves: print(f"Gamma Ray: {len(gr_curves)} curves")
-    if density_curves: print(f"Density: {len(density_curves)} curves")
-    if neutron_curves: print(f"Neutron: {len(neutron_curves)} curves")
-    if spectral_curves: print(f"Spectral: {len(spectral_curves)} curves")
+
     
     print("\n✅ DATA QUALITY:")
     print(f"Overall completeness: {avg_completeness:.1f}%")
