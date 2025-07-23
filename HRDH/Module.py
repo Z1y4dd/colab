@@ -742,7 +742,7 @@ def visualize_match_quality(joined, well_name):
         plt.savefig(f'imgs/{well_name}_match_quality.png', dpi=300, bbox_inches='tight')
         plt.show()
 
-def create_mineral_composition_bar(data, mineral_columns):
+def create_mineral_composition_bar(data, mineral_columns, well_name):
     """Create stacked bar chart of mineral composition by depth"""
     
     # Sort by depth for proper stratigraphic order (deepest at bottom)
@@ -853,7 +853,7 @@ def create_mineral_composition_bar(data, mineral_columns):
     
     return fig
 
-def create_depth_trend_plots(data, variables,well_name, n_cols=3):
+def create_depth_trend_plots(data, variables, well_name, n_cols=3):
     """Create depth trend plots for selected variables"""
     
     n_vars = len(variables)
@@ -1558,75 +1558,7 @@ def create_distribution_grid(data, variables, ncols=4, figsize_per_plot=(4, 3), 
     plt.tight_layout()
     return fig
 
-def create_enhanced_correlation_heatmap(correlation_results, significance_level=0.05):
-    """Create correlation heatmap with significance masking"""
-    
-    # Get correlation matrix and p-values
-    corr_matrix = correlation_results['pearson_r']
-    p_matrix = correlation_results['pearson_p']
-    n_matrix = correlation_results['n_samples']
-    
-    # Create significance mask
-    significance_mask = (p_matrix > significance_level) | pd.isna(p_matrix)
-    
-    # Reset matplotlib figure to ensure clean slate
-    plt.clf()
-    plt.close('all')
-    
-    # Create a new figure
-    plt.figure(figsize=(24, 24))
-    
-    # Create the heatmap directly on the current figure
-    heatmap = sns.heatmap(corr_matrix, 
-                annot=True, 
-                cmap='RdYlGn', 
-                vmin=-1, vmax=1,
-                linewidths=0.5,
-                fmt='.2f',
-                annot_kws={'size': 20},
-                mask=significance_mask,  # Mask non-significant
-                cbar_kws={"shrink": 0.8})
-    
-    # Set titles and labels
-    plt.title(f'Significant Correlations Only (p ≤ {significance_level})', fontsize=25)
-    plt.xlabel('Lab Measurements', fontsize=25)
-    plt.ylabel('Log Measurements', fontsize=25)
-    
-    # Adjust x and y tick labels
-    plt.xticks(rotation=45, ha='right', fontsize=20)
-    plt.yticks(fontsize=20, rotation=0)
-    
-    # Adjust layout
-    plt.tight_layout()
-    
-    # Save and display
-    plt.savefig(f'imgs/{well_name}_enhanced_correlation_heatmap.png', dpi=300, bbox_inches='tight')
-    plt.show()
-    
-    # Print summary of significant correlations
-    significant_count = (~significance_mask).sum().sum()
-    total_count = (~pd.isna(corr_matrix)).sum().sum()
-    
-    print(f"\nCORRELATION HEATMAP SUMMARY:")
-    print(f"Total correlations: {total_count}")
-    print(f"Significant correlations: {significant_count}")
-    print(f"Significance rate: {(significant_count/total_count)*100:.1f}%")
-    
-    # Find and display strongest correlations
-    strong_correlations = []
-    for i in corr_matrix.index:
-        for j in corr_matrix.columns:
-            r = corr_matrix.loc[i, j]
-            p = p_matrix.loc[i, j]
-            if not pd.isna(r) and not pd.isna(p) and abs(r) >= 0.6 and p <= significance_level:
-                strong_correlations.append((i, j, r, p))
-    
-    if strong_correlations:
-        print(f"\nSTRONGEST SIGNIFICANT CORRELATIONS:")
-        for log_var, lab_var, r, p in sorted(strong_correlations, key=lambda x: abs(x[2]), reverse=True):
-            print(f"{log_var} ↔ {lab_var}: r={r:.3f} (p={p:.4f})")
-    else:
-        print(f"\nNo strong significant correlations found (|r| ≥ 0.6, p ≤ {significance_level})")
+
 
 def enhanced_correlation_analysis(data, log_vars, lab_vars, significance_level=0.05):
     
@@ -1844,7 +1776,7 @@ def visualize_significant_correlations(data, correlation_results, well_name, sig
         "negative_correlations": negative_correlations
     }
     
-def create_correlation_network(correlation_results, min_correlation=0.6, max_connections=50):
+def create_correlation_network(correlation_results, well_name, min_correlation=0.6, max_connections=50):
     """
     Create a network visualization of significant correlations.
     
