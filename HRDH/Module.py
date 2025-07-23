@@ -714,6 +714,34 @@ def create_log_summary(log_df):
         "depth_sampling": avg_interval
     }
 # visuals
+
+def visualize_match_quality(joined, well_name):
+        """
+        Visualize the quality of matches between lab and log data.
+        Plots a histogram of match distances and a pie chart of match types.
+        """
+        plt.figure(figsize=(12, 6))
+
+        # Left plot: Distance histogram
+        plt.subplot(1, 2, 1)
+        sns.histplot(joined['Distance'], bins=20, kde=True)
+        plt.xlabel('Match Distance (ft)')
+        plt.ylabel('Frequency')
+        plt.title('Distribution of Match Distances')
+        plt.grid(True)
+
+        # Right plot: Match types
+        plt.subplot(1, 2, 2)
+        match_counts = joined['Match_Type'].value_counts()
+        plt.pie(match_counts, labels=match_counts.index, autopct='%1.1f%%', 
+                        colors=['#66b3ff', '#99ff99'], startangle=90)
+        plt.axis('equal')
+        plt.title('Match Type Distribution')
+
+        plt.tight_layout()
+        plt.savefig(f'imgs/{well_name}_match_quality.png', dpi=300, bbox_inches='tight')
+        plt.show()
+
 def create_mineral_composition_bar(data, mineral_columns):
     """Create stacked bar chart of mineral composition by depth"""
     
@@ -984,7 +1012,7 @@ def create_composite_log_plot(data, log_vars, label_cols=None):
     plt.show()
     
     return fig
-# zscore
+# z-score
 def calculate_zscore(data, columns=None):
     """Calculate z-scores for specified columns
     
@@ -1044,7 +1072,7 @@ def calculate_zscore(data, columns=None):
     plt.tight_layout()
     plt.savefig('imgs/zscore_heatmap.png', dpi=300, bbox_inches='tight')
     plt.show()
-# visuals
+    
 def enhanced_zscore_correlation_analysis(data, log_vars, lab_vars, significance_level=0.05):
     """Enhanced correlation with multiple statistics and significance testing for z-scores"""
     
@@ -1263,273 +1291,7 @@ def create_zscore_enhanced_heatmap(correlation_results, significance_level=0.05)
     else:
         print(f"\nNo strong significant correlations found (|r| ≥ 0.6, p ≤ {significance_level})")
 
-def create_correlation_figure(data, correlations, correlation_type, significance_level=0.05):
-    
-    """Create scatter plots with regression lines for specified correlations"""
-    if not correlations:
-        return None
-    
-    # Calculate number of rows and columns for subplots
-    n_corrs = len(correlations)
-    n_cols = min(3, n_corrs)  # Maximum 3 columns
-    n_rows = (n_corrs + n_cols - 1) // n_cols
-    
-    # Create figure
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols*5, n_rows*4))
-    
-    # Make axes iterable even for single subplot
-    if n_rows * n_cols == 1:
-        axes = np.array([axes])
-    axes = axes.flatten()
-    
-    # Set custom colors for positive and negative correlations
-    if correlation_type == "Positive":
-        color = "#00FF7F"  
-        title_prefix = "Positive"
-    else:
-        color = "#FF0000"  
-        title_prefix = "Negative"
-    
-    # Find original data columns if we're using z-scores
-    # This will map z-score column names back to original data columns
-    original_data = joined  # Use the original joined dataframe
-    
-    # Create scatter plots
-    for i, (log_var, lab_var, r, p, n) in enumerate(correlations):
-        if i < len(axes):
-            ax = axes[i]
-            
-            # Use original variable names (remove z-score indicators if present)
-            orig_log_var = log_var
-            orig_lab_var = lab_var
-            
-            # Clean data for this pair
-            pair_data = original_data[[orig_log_var, orig_lab_var]].dropna()
-            
-            # Scatter plot with original data
-            ax.scatter(pair_data[orig_log_var], pair_data[orig_lab_var], 
-                      alpha=0.7, s=50, edgecolor='k', linewidth=0.5,
-                      color=color)
-            
-            # Add regression line using original data
-            sns.regplot(x=orig_log_var, y=orig_lab_var, data=pair_data, 
-                      scatter=False, ax=ax, color=color, 
-                      line_kws={'linewidth': 2})
-            
-            # Add correlation statistics
-            ax.text(0.05, 0.95, f'r = {r:.3f}\np = {p:.4f}\nn = {n}',
-                   transform=ax.transAxes, fontsize=10,
-                   verticalalignment='top',
-                   bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
-            
-            # Labels and title - use more readable names
-            ax.set_xlabel(orig_log_var.replace('Log_', ''), fontsize=12)
-            ax.set_ylabel(orig_lab_var.replace('Lab_', ''), fontsize=12)
-            ax.set_title(f'{orig_log_var.replace("Log_", "")} vs {orig_lab_var.replace("Lab_", "")}', fontsize=14)
-            ax.grid(True, linestyle='--', alpha=0.3)
-    
-    # Hide unused subplots
-    for i in range(n_corrs, len(axes)):
-        axes[i].set_visible(False)
-    
-    # Add main title
-    plt.suptitle(f'{title_prefix} Significant Correlations (p ≤ {significance_level})', 
-                fontsize=16, y=1.02)
-    
-    # Save the figure
-    plt.tight_layout()
-    filename = f'imgs/{correlation_type.lower()}_correlations.png'
-    plt.savefig(filename, dpi=300, bbox_inches='tight')
-    
-    return fig
-
-def visualize_significant_correlations(data, correlation_results, significance_level=0.05, min_correlation=0.6):
-    """Visualize significant correlations with scatter plots"""
-    
-    # Get correlation matrix and p-values
-    corr_matrix = correlation_results['pearson_r']
-    p_matrix = correlation_results['pearson_p']
-    n_matrix = correlation_results['n_samples']
-    
-    # Find significant positive correlations
-    positive_correlations = []
-    for log_var in corr_matrix.index:
-        for lab_var in corr_matrix.columns:
-            r = corr_matrix.loc[log_var, lab_var]
-            p = p_matrix.loc[log_var, lab_var]
-            n = n_matrix.loc[log_var, lab_var]
-            
-            if not pd.isna(r) and not pd.isna(p) and r >= min_correlation and p <= significance_level:
-                positive_correlations.append((log_var, lab_var, r, p, n))
-    
-    # Find significant negative correlations
-    negative_correlations = []
-    for log_var in corr_matrix.index:
-        for lab_var in corr_matrix.columns:
-            r = corr_matrix.loc[log_var, lab_var]
-            p = p_matrix.loc[log_var, lab_var]
-            n = n_matrix.loc[log_var, lab_var]
-            
-            if not pd.isna(r) and not pd.isna(p) and r <= -min_correlation and p <= significance_level:
-                negative_correlations.append((log_var, lab_var, r, p, n))
-    
-    # Sort correlations by strength (absolute value)
-    positive_correlations.sort(key=lambda x: x[2], reverse=True)  # r is at index 2
-    negative_correlations.sort(key=lambda x: x[2])  # Sort negative from strongest (most negative) to weakest
-    
-    # Create visualizations for positive correlations
-    if positive_correlations:
-        print(f"\n🟢POSITIVE SIGNIFICANT CORRELATIONS (r ≥ {min_correlation}, p ≤ {significance_level}):")
-        for log_var, lab_var, r, p, n in positive_correlations:
-            print(f"{log_var} ↔ {lab_var}: r = {r:.3f} (p = {p:.4f}, n = {n})")
-        
-        pos_fig = create_correlation_figure(data, positive_correlations, "Positive", significance_level)
-    else:
-        print(f"\n No significant positive correlations found (r ≥ {min_correlation}, p ≤ {significance_level})")
-    
-    # Create visualizations for negative correlations
-    if negative_correlations:
-        print(f"\n🔴NEGATIVE SIGNIFICANT CORRELATIONS (r ≤ -{min_correlation}, p ≤ {significance_level}):")
-        for log_var, lab_var, r, p, n in negative_correlations:
-            print(f"{log_var} ↔ {lab_var}: r = {r:.3f} (p = {p:.4f}, n = {n})")
-            
-        neg_fig = create_correlation_figure(data, negative_correlations, "Negative", significance_level)
-    else:
-        print(f"\n No significant negative correlations found (r ≤ -{min_correlation}, p ≤ {significance_level})")
-    
-    return {
-        "positive_correlations": positive_correlations,
-        "negative_correlations": negative_correlations
-    }
-
-def create_distribution_grid(data, variables, ncols=4, figsize_per_plot=(4, 3), kde=True, bins=30, 
-                             color_map='viridis', highlight_outliers=True, group_by=None):
-    """
-    Create efficient grid of distribution plots with enhanced visualization and analysis features
-    
-    Parameters:
-    -----------
-    data : pandas.DataFrame
-        DataFrame containing the variables to plot
-    variables : list
-        List of column names to plot
-    ncols : int
-        Number of columns in the grid
-    figsize_per_plot : tuple
-        Figure size per subplot (width, height)
-    kde : bool
-        Whether to show kernel density estimate
-    bins : int or str
-        Number of bins or binning strategy (e.g., 'auto', 'sturges')
-    color_map : str
-        Matplotlib colormap name for sequential coloring
-    highlight_outliers : bool
-        Whether to highlight outliers in the distributions
-    group_by : str, optional
-        Column name to group data by (creates faceted distributions)
-    
-    Returns:
-    --------
-    fig : matplotlib.figure.Figure
-        The created figure
-    """
-    
-    # Get colormap for sequential coloring
-    cmap = plt.cm.get_cmap(color_map)
-    colors = [cmap(i/len(variables)) for i in range(len(variables))]
-    
-    n_vars = len(variables)
-    nrows = (n_vars + ncols - 1) // ncols
-    
-    fig, axes = plt.subplots(nrows, ncols, 
-                           figsize=(figsize_per_plot[0] * ncols, figsize_per_plot[1] * nrows))
-    
-    # Handle single row/column cases
-    if nrows * ncols == 1:
-        axes = np.array([axes])
-    axes = axes.flatten()
-    
-    for i, var in enumerate(variables):
-        if i < len(axes):
-            ax = axes[i]
-            # Clean data
-            clean_data = data[var].dropna()
-            
-            if len(clean_data) > 0:
-                # Calculate statistics
-                mean_val = clean_data.mean()
-                median_val = clean_data.median()
-                std_val = clean_data.std()
-                skew_val = clean_data.skew()
-                
-                # Detect outliers (beyond 1.5 IQR)
-                q1, q3 = np.percentile(clean_data, [25, 75])
-                iqr = q3 - q1
-                lower_bound = q1 - 1.5 * iqr
-                upper_bound = q3 + 1.5 * iqr
-                outliers = clean_data[(clean_data < lower_bound) | (clean_data > upper_bound)]
-                
-                # Create histogram with or without KDE
-                sns.histplot(clean_data, bins=bins, kde=kde, ax=ax, 
-                             color=colors[i], alpha=0.7, edgecolor='k', linewidth=0.5)
-                
-                # Add vertical lines for mean and median
-                ax.axvline(mean_val, color='red', linestyle='-', linewidth=1.5, alpha=0.7, label=f'Mean: {mean_val:.2f}')
-                ax.axvline(median_val, color='green', linestyle='--', linewidth=1.5, alpha=0.7, label=f'Median: {median_val:.2f}')
-                
-                # Highlight outliers if requested
-                if highlight_outliers and len(outliers) > 0:
-                    outlier_positions = np.zeros_like(outliers)
-                    ax.scatter(outliers, outlier_positions, color='red', s=20, alpha=0.6, marker='o', label=f'Outliers: {len(outliers)}')
-                
-                # Add comprehensive statistics text
-                stats_text = (
-                    f'μ = {mean_val:.2f}\n'
-                    f'σ = {std_val:.2f}\n'
-                    f'Median = {median_val:.2f}\n'
-                    f'Skew = {skew_val:.2f}\n'
-                    f'n = {len(clean_data)}'
-                )
-                
-                ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, fontsize=8,
-                       verticalalignment='top', horizontalalignment='left',
-                       bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
-                
-                # Add normalized y-axis option for better comparison
-                ax_twin = ax.twinx()
-                sns.kdeplot(clean_data, ax=ax_twin, color='navy', alpha=0.5, linewidth=2)
-                ax_twin.set_ylabel('Density', color='navy')
-                ax_twin.tick_params(axis='y', colors='navy')
-                ax_twin.set_ylim(bottom=0)
-                
-                # Improve labels and formatting
-                title = var.replace('Lab_', '').replace('Log_', '')
-                ax.set_title(f"{title}", fontsize=10)
-                ax.set_xlabel(var, fontsize=8)
-                ax.set_ylabel("Count", fontsize=8)
-                ax.tick_params(labelsize=8)
-                
-                # Add compact legend
-                if i == 0:  # Add legend only to first plot to avoid repetition
-                    handles, labels = ax.get_legend_handles_labels()
-                    if handles:
-                        ax.legend(fontsize=7, loc='upper right')
-            else:
-                ax.text(0.5, 0.5, 'No Data', transform=ax.transAxes, 
-                      ha='center', va='center', fontsize=12)
-                ax.set_title(f"{var} (No Data)")
-    
-    # Hide empty subplots
-    for i in range(n_vars, len(axes)):
-        axes[i].set_visible(False)
-    
-    # Add overall title with dataset info
-    fig.text(0.5, 0.01, f'Total variables: {n_vars} | Total samples: {len(data)}', 
-             ha='center', fontsize=10, style='italic')
-    
-    plt.tight_layout()
-    return fig
-
+# enhanced
 def create_enhanced_correlation_heatmap(correlation_results, significance_level=0.05):
     """Create correlation heatmap with significance masking"""
     
@@ -1678,8 +1440,6 @@ def enhanced_correlation_analysis(data, log_vars, lab_vars, significance_level=0
     
     return results
 
-
-
 # Define the create_correlation_figure function 
 def create_correlation_figure(data, correlations, correlation_type, significance_level=0.05):
     """Create scatter plots with regression lines for specified correlations"""
@@ -1818,7 +1578,7 @@ def visualize_significant_correlations(data, correlation_results, significance_l
         "positive_correlations": positive_correlations,
         "negative_correlations": negative_correlations
     }
-    
+# network visual
 def create_correlation_network(correlation_results, min_correlation=0.6, max_connections=50):
     """
     Create a network visualization of significant correlations.
@@ -1913,3 +1673,131 @@ def create_correlation_network(correlation_results, min_correlation=0.6, max_con
     plt.tight_layout()
     plt.savefig('imgs/correlation_network.png', dpi=300, bbox_inches='tight')
     plt.show()
+# distribution visual
+def create_distribution_grid(data, variables, ncols=4, figsize_per_plot=(4, 3), kde=True, bins=30, 
+                             color_map='viridis', highlight_outliers=True, group_by=None):
+    """
+    Create efficient grid of distribution plots with enhanced visualization and analysis features
+    
+    Parameters:
+    -----------
+    data : pandas.DataFrame
+        DataFrame containing the variables to plot
+    variables : list
+        List of column names to plot
+    ncols : int
+        Number of columns in the grid
+    figsize_per_plot : tuple
+        Figure size per subplot (width, height)
+    kde : bool
+        Whether to show kernel density estimate
+    bins : int or str
+        Number of bins or binning strategy (e.g., 'auto', 'sturges')
+    color_map : str
+        Matplotlib colormap name for sequential coloring
+    highlight_outliers : bool
+        Whether to highlight outliers in the distributions
+    group_by : str, optional
+        Column name to group data by (creates faceted distributions)
+    
+    Returns:
+    --------
+    fig : matplotlib.figure.Figure
+        The created figure
+    """
+    
+    # Get colormap for sequential coloring
+    cmap = plt.cm.get_cmap(color_map)
+    colors = [cmap(i/len(variables)) for i in range(len(variables))]
+    
+    n_vars = len(variables)
+    nrows = (n_vars + ncols - 1) // ncols
+    
+    fig, axes = plt.subplots(nrows, ncols, 
+                           figsize=(figsize_per_plot[0] * ncols, figsize_per_plot[1] * nrows))
+    
+    # Handle single row/column cases
+    if nrows * ncols == 1:
+        axes = np.array([axes])
+    axes = axes.flatten()
+    
+    for i, var in enumerate(variables):
+        if i < len(axes):
+            ax = axes[i]
+            # Clean data
+            clean_data = data[var].dropna()
+            
+            if len(clean_data) > 0:
+                # Calculate statistics
+                mean_val = clean_data.mean()
+                median_val = clean_data.median()
+                std_val = clean_data.std()
+                skew_val = clean_data.skew()
+                
+                # Detect outliers (beyond 1.5 IQR)
+                q1, q3 = np.percentile(clean_data, [25, 75])
+                iqr = q3 - q1
+                lower_bound = q1 - 1.5 * iqr
+                upper_bound = q3 + 1.5 * iqr
+                outliers = clean_data[(clean_data < lower_bound) | (clean_data > upper_bound)]
+                
+                # Create histogram with or without KDE
+                sns.histplot(clean_data, bins=bins, kde=kde, ax=ax, 
+                             color=colors[i], alpha=0.7, edgecolor='k', linewidth=0.5)
+                
+                # Add vertical lines for mean and median
+                ax.axvline(mean_val, color='red', linestyle='-', linewidth=1.5, alpha=0.7, label=f'Mean: {mean_val:.2f}')
+                ax.axvline(median_val, color='green', linestyle='--', linewidth=1.5, alpha=0.7, label=f'Median: {median_val:.2f}')
+                
+                # Highlight outliers if requested
+                if highlight_outliers and len(outliers) > 0:
+                    outlier_positions = np.zeros_like(outliers)
+                    ax.scatter(outliers, outlier_positions, color='red', s=20, alpha=0.6, marker='o', label=f'Outliers: {len(outliers)}')
+                
+                # Add comprehensive statistics text
+                stats_text = (
+                    f'μ = {mean_val:.2f}\n'
+                    f'σ = {std_val:.2f}\n'
+                    f'Median = {median_val:.2f}\n'
+                    f'Skew = {skew_val:.2f}\n'
+                    f'n = {len(clean_data)}'
+                )
+                
+                ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, fontsize=8,
+                       verticalalignment='top', horizontalalignment='left',
+                       bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+                
+                # Add normalized y-axis option for better comparison
+                ax_twin = ax.twinx()
+                sns.kdeplot(clean_data, ax=ax_twin, color='navy', alpha=0.5, linewidth=2)
+                ax_twin.set_ylabel('Density', color='navy')
+                ax_twin.tick_params(axis='y', colors='navy')
+                ax_twin.set_ylim(bottom=0)
+                
+                # Improve labels and formatting
+                title = var.replace('Lab_', '').replace('Log_', '')
+                ax.set_title(f"{title}", fontsize=10)
+                ax.set_xlabel(var, fontsize=8)
+                ax.set_ylabel("Count", fontsize=8)
+                ax.tick_params(labelsize=8)
+                
+                # Add compact legend
+                if i == 0:  # Add legend only to first plot to avoid repetition
+                    handles, labels = ax.get_legend_handles_labels()
+                    if handles:
+                        ax.legend(fontsize=7, loc='upper right')
+            else:
+                ax.text(0.5, 0.5, 'No Data', transform=ax.transAxes, 
+                      ha='center', va='center', fontsize=12)
+                ax.set_title(f"{var} (No Data)")
+    
+    # Hide empty subplots
+    for i in range(n_vars, len(axes)):
+        axes[i].set_visible(False)
+    
+    # Add overall title with dataset info
+    fig.text(0.5, 0.01, f'Total variables: {n_vars} | Total samples: {len(data)}', 
+             ha='center', fontsize=10, style='italic')
+    
+    plt.tight_layout()
+    return fig
