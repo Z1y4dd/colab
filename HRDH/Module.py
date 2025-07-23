@@ -1897,11 +1897,18 @@ def analyze_correlations(all_wells, lab_vars, log_vars, min_corr=0.5):
         print(f"\n{'='*50}\nAnalyzing correlations for well: {well} ({len(data)} samples)\n{'='*50}")
         
         # Filter out zero/constant/NaN columns for this well
-        filtered_lab_vars = [col for col in lab_vars if not (data[col] == 0).all() and not data[col].isna().all()]
-        filtered_lab_vars = [col for col in filtered_lab_vars if data[col].std() > 0]
         
-        filtered_log_vars = [col for col in log_vars if not (data[col] == 0).all() and not data[col].isna().all()]
-        filtered_log_vars = [col for col in filtered_log_vars if data[col].std() > 0]
+        # Lab variables filtering (commented out - to enable filtering, uncomment these lines)
+        # filtered_lab_vars = [col for col in lab_vars if not (data[col] == 0).all() and not data[col].isna().all()]
+        # filtered_lab_vars = [col for col in filtered_lab_vars if data[col].std() > 0]
+        # To disable filtering, use original lab_vars:
+        filtered_lab_vars = lab_vars
+        
+        # Log variables filtering (commented out - to enable filtering, uncomment these lines)
+        # filtered_log_vars = [col for col in log_vars if not (data[col] == 0).all() and not data[col].isna().all()]
+        # filtered_log_vars = [col for col in filtered_log_vars if data[col].std() > 0]
+        # To disable filtering, use original log_vars:
+        filtered_log_vars = log_vars
         
         # Store filtered variables for this well for later use
         filtered_vars_by_well[well] = {
@@ -1909,7 +1916,7 @@ def analyze_correlations(all_wells, lab_vars, log_vars, min_corr=0.5):
             'log': filtered_log_vars
         }
         
-        print(f"Using {len(filtered_lab_vars)} lab variables and {len(filtered_log_vars)} log variables after filtering")
+        print(f"Using {len(filtered_lab_vars)} lab variables and {len(filtered_log_vars)} log variables (filtering disabled)")
         
         # Calculate correlation matrix between lab and log variables
         corr = data[filtered_lab_vars + filtered_log_vars].corr().loc[filtered_log_vars, filtered_lab_vars]
