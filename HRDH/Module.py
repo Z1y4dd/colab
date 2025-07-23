@@ -714,7 +714,7 @@ def create_log_summary(log_df):
         "depth_sampling": avg_interval
     }
 # visuals
-def create_mineral_composition_bar(data, mineral_columns):
+def create_mineral_composition_bar(data, mineral_columns, well_name):
     """Create stacked bar chart of mineral composition by depth"""
     
     # Sort by depth for proper stratigraphic order (deepest at bottom)
@@ -747,7 +747,7 @@ def create_mineral_composition_bar(data, mineral_columns):
     
     plt.tight_layout()
     # plt.savefig('mineral_composition_vs_depth.png', dpi=300, bbox_inches='tight')
-    plt.savefig('imgs/mineral_composition_vs_depth.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'imgs/{well_name}_mineral_composition_vs_depth.png', dpi=300, bbox_inches='tight')
 
     plt.show()
     
@@ -825,7 +825,7 @@ def create_mineral_composition_bar(data, mineral_columns):
     
     return fig
 
-def create_depth_trend_plots(data, variables, n_cols=3):
+def create_depth_trend_plots(data, variables,well_name, n_cols=3):
     """Create depth trend plots for selected variables"""
     
     n_vars = len(variables)
@@ -870,12 +870,12 @@ def create_depth_trend_plots(data, variables, n_cols=3):
     fig.suptitle('Depth Trends of Key Variables', fontsize=16, y=1.02)
     
     plt.tight_layout()
-    plt.savefig('imgs/depth_trend_plots.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'imgs/{well_name}_depth_trend_plots.png', dpi=300, bbox_inches='tight')
     plt.show()
     
     return fig
 
-def create_composite_log_plot(data, log_vars, label_cols=None):
+def create_composite_log_plot(data, log_vars, well_name, label_cols=None):
     """Create a composite log plot with multiple tracks"""
     
     # Sort by depth
@@ -980,7 +980,7 @@ def create_composite_log_plot(data, log_vars, label_cols=None):
     fig.suptitle('Composite Log', fontsize=16, y=1.02)
     
     plt.tight_layout()
-    plt.savefig('imgs/composite_log_plot.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'imgs/{well_name}_composite_log_plot.png', dpi=300, bbox_inches='tight')
     plt.show()
     
     return fig
@@ -1121,7 +1121,7 @@ def enhanced_zscore_correlation_analysis(data, log_vars, lab_vars, significance_
     
     return results
 
-def create_zscore_enhanced_heatmap(correlation_results, significance_level=0.05):
+def create_zscore_enhanced_heatmap(correlation_results, well_name, significance_level=0.05):
     """Create correlation heatmap with significance masking for z-scores"""
     
     # Get correlation matrix and p-values
@@ -1164,8 +1164,8 @@ def create_zscore_enhanced_heatmap(correlation_results, significance_level=0.05)
     
     # Move the y-label to be more visible
     plt.gcf().axes[0].yaxis.set_label_coords(-0.15, 0.5)
-    
-    plt.savefig('imgs/zscore_enhanced_correlation_heatmap.png', dpi=300, bbox_inches='tight')
+
+    plt.savefig(f'imgs/{well_name}_zscore_enhanced_correlation_heatmap.png', dpi=300, bbox_inches='tight')
     plt.show()
     
     # Print summary of significant correlations
@@ -1193,7 +1193,7 @@ def create_zscore_enhanced_heatmap(correlation_results, significance_level=0.05)
     else:
         print(f"\nNo strong significant z-score correlations found (|r| ≥ 0.6, p ≤ {significance_level})")
 
-# def create_enhanced_correlation_heatmap(correlation_results, significance_level=0.05):
+def create_enhanced_correlation_heatmap(correlation_results, well_name, significance_level=0.05):
     """Create correlation heatmap with significance masking"""
     
     # Get correlation matrix and p-values
@@ -1235,7 +1235,7 @@ def create_zscore_enhanced_heatmap(correlation_results, significance_level=0.05)
     plt.tight_layout()
     
     # Save and display
-    plt.savefig('imgs/enhanced_correlation_heatmap.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'imgs/{well_name}_enhanced_correlation_heatmap.png', dpi=300, bbox_inches='tight')
     plt.show()
     
     # Print summary of significant correlations
@@ -1262,145 +1262,6 @@ def create_zscore_enhanced_heatmap(correlation_results, significance_level=0.05)
             print(f"{log_var} ↔ {lab_var}: r={r:.3f} (p={p:.4f})")
     else:
         print(f"\nNo strong significant correlations found (|r| ≥ 0.6, p ≤ {significance_level})")
-
-def create_correlation_figure(data, correlations, correlation_type, significance_level=0.05):
-    
-    """Create scatter plots with regression lines for specified correlations"""
-    if not correlations:
-        return None
-    
-    # Calculate number of rows and columns for subplots
-    n_corrs = len(correlations)
-    n_cols = min(3, n_corrs)  # Maximum 3 columns
-    n_rows = (n_corrs + n_cols - 1) // n_cols
-    
-    # Create figure
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols*5, n_rows*4))
-    
-    # Make axes iterable even for single subplot
-    if n_rows * n_cols == 1:
-        axes = np.array([axes])
-    axes = axes.flatten()
-    
-    # Set custom colors for positive and negative correlations
-    if correlation_type == "Positive":
-        color = "#00FF7F"  
-        title_prefix = "Positive"
-    else:
-        color = "#FF0000"  
-        title_prefix = "Negative"
-    
-    # Find original data columns if we're using z-scores
-    # This will map z-score column names back to original data columns
-    original_data = joined  # Use the original joined dataframe
-    
-    # Create scatter plots
-    for i, (log_var, lab_var, r, p, n) in enumerate(correlations):
-        if i < len(axes):
-            ax = axes[i]
-            
-            # Use original variable names (remove z-score indicators if present)
-            orig_log_var = log_var
-            orig_lab_var = lab_var
-            
-            # Clean data for this pair
-            pair_data = original_data[[orig_log_var, orig_lab_var]].dropna()
-            
-            # Scatter plot with original data
-            ax.scatter(pair_data[orig_log_var], pair_data[orig_lab_var], 
-                      alpha=0.7, s=50, edgecolor='k', linewidth=0.5,
-                      color=color)
-            
-            # Add regression line using original data
-            sns.regplot(x=orig_log_var, y=orig_lab_var, data=pair_data, 
-                      scatter=False, ax=ax, color=color, 
-                      line_kws={'linewidth': 2})
-            
-            # Add correlation statistics
-            ax.text(0.05, 0.95, f'r = {r:.3f}\np = {p:.4f}\nn = {n}',
-                   transform=ax.transAxes, fontsize=10,
-                   verticalalignment='top',
-                   bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
-            
-            # Labels and title - use more readable names
-            ax.set_xlabel(orig_log_var.replace('Log_', ''), fontsize=12)
-            ax.set_ylabel(orig_lab_var.replace('Lab_', ''), fontsize=12)
-            ax.set_title(f'{orig_log_var.replace("Log_", "")} vs {orig_lab_var.replace("Lab_", "")}', fontsize=14)
-            ax.grid(True, linestyle='--', alpha=0.3)
-    
-    # Hide unused subplots
-    for i in range(n_corrs, len(axes)):
-        axes[i].set_visible(False)
-    
-    # Add main title
-    plt.suptitle(f'{title_prefix} Significant Correlations (p ≤ {significance_level})', 
-                fontsize=16, y=1.02)
-    
-    # Save the figure
-    plt.tight_layout()
-    filename = f'imgs/{correlation_type.lower()}_correlations.png'
-    plt.savefig(filename, dpi=300, bbox_inches='tight')
-    
-    return fig
-
-def visualize_significant_correlations(data, correlation_results, significance_level=0.05, min_correlation=0.6):
-    """Visualize significant correlations with scatter plots"""
-    
-    # Get correlation matrix and p-values
-    corr_matrix = correlation_results['pearson_r']
-    p_matrix = correlation_results['pearson_p']
-    n_matrix = correlation_results['n_samples']
-    
-    # Find significant positive correlations
-    positive_correlations = []
-    for log_var in corr_matrix.index:
-        for lab_var in corr_matrix.columns:
-            r = corr_matrix.loc[log_var, lab_var]
-            p = p_matrix.loc[log_var, lab_var]
-            n = n_matrix.loc[log_var, lab_var]
-            
-            if not pd.isna(r) and not pd.isna(p) and r >= min_correlation and p <= significance_level:
-                positive_correlations.append((log_var, lab_var, r, p, n))
-    
-    # Find significant negative correlations
-    negative_correlations = []
-    for log_var in corr_matrix.index:
-        for lab_var in corr_matrix.columns:
-            r = corr_matrix.loc[log_var, lab_var]
-            p = p_matrix.loc[log_var, lab_var]
-            n = n_matrix.loc[log_var, lab_var]
-            
-            if not pd.isna(r) and not pd.isna(p) and r <= -min_correlation and p <= significance_level:
-                negative_correlations.append((log_var, lab_var, r, p, n))
-    
-    # Sort correlations by strength (absolute value)
-    positive_correlations.sort(key=lambda x: x[2], reverse=True)  # r is at index 2
-    negative_correlations.sort(key=lambda x: x[2])  # Sort negative from strongest (most negative) to weakest
-    
-    # Create visualizations for positive correlations
-    if positive_correlations:
-        print(f"\n🟢POSITIVE SIGNIFICANT CORRELATIONS (r ≥ {min_correlation}, p ≤ {significance_level}):")
-        for log_var, lab_var, r, p, n in positive_correlations:
-            print(f"{log_var} ↔ {lab_var}: r = {r:.3f} (p = {p:.4f}, n = {n})")
-        
-        pos_fig = create_correlation_figure(data, positive_correlations, "Positive", significance_level)
-    else:
-        print(f"\n No significant positive correlations found (r ≥ {min_correlation}, p ≤ {significance_level})")
-    
-    # Create visualizations for negative correlations
-    if negative_correlations:
-        print(f"\n🔴NEGATIVE SIGNIFICANT CORRELATIONS (r ≤ -{min_correlation}, p ≤ {significance_level}):")
-        for log_var, lab_var, r, p, n in negative_correlations:
-            print(f"{log_var} ↔ {lab_var}: r = {r:.3f} (p = {p:.4f}, n = {n})")
-            
-        neg_fig = create_correlation_figure(data, negative_correlations, "Negative", significance_level)
-    else:
-        print(f"\n No significant negative correlations found (r ≤ -{min_correlation}, p ≤ {significance_level})")
-    
-    return {
-        "positive_correlations": positive_correlations,
-        "negative_correlations": negative_correlations
-    }
 
 def create_distribution_grid(data, variables, ncols=4, figsize_per_plot=(4, 3), kde=True, bins=30, 
                              color_map='viridis', highlight_outliers=True, group_by=None):
@@ -1530,7 +1391,7 @@ def create_distribution_grid(data, variables, ncols=4, figsize_per_plot=(4, 3), 
     plt.tight_layout()
     return fig
 
-def create_enhanced_correlation_heatmap(correlation_results, significance_level=0.05):
+def create_enhanced_correlation_heatmap(correlation_results, well_name, significance_level=0.05):
     """Create correlation heatmap with significance masking"""
     
     # Get correlation matrix and p-values
@@ -1572,7 +1433,7 @@ def create_enhanced_correlation_heatmap(correlation_results, significance_level=
     plt.tight_layout()
     
     # Save and display
-    plt.savefig('imgs/enhanced_correlation_heatmap.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'imgs/{well_name}_enhanced_correlation_heatmap.png', dpi=300, bbox_inches='tight')
     plt.show()
     
     # Print summary of significant correlations
@@ -1679,7 +1540,7 @@ def enhanced_correlation_analysis(data, log_vars, lab_vars, significance_level=0
     return results
 
 # Define the create_correlation_figure function 
-def create_correlation_figure(data, correlations, correlation_type, significance_level=0.05):
+def create_correlation_figure(data, correlations, correlation_type, significance_level, well_name):
     """Create scatter plots with regression lines for specified correlations"""
     if not correlations:
         return None
@@ -1750,15 +1611,14 @@ def create_correlation_figure(data, correlations, correlation_type, significance
     plt.suptitle(f'{title_prefix} Significant Correlations (p ≤ {significance_level})', 
                fontsize=16, y=1.02)
     
-    # Save the figure
+    # Save the figure with well name
     plt.tight_layout()
-    filename = f'imgs/{correlation_type.lower()}_correlations.png'
+    filename = f'imgs/{well_name}_{correlation_type.lower()}_correlations.png'
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     
     return fig
 
-# Define visualize_significant_correlations function (no changes needed here)
-def visualize_significant_correlations(data, correlation_results, significance_level=0.05, min_correlation=0.6):
+def visualize_significant_correlations(data, correlation_results, well_name, significance_level=0.05, min_correlation=0.6):
     """Visualize significant correlations with scatter plots"""
     
     # Get correlation matrix and p-values
@@ -1798,7 +1658,7 @@ def visualize_significant_correlations(data, correlation_results, significance_l
         for log_var, lab_var, r, p, n in positive_correlations:
             print(f"{log_var} ↔ {lab_var}: r = {r:.3f} (p = {p:.4f}, n = {n})")
         
-        pos_fig = create_correlation_figure(data, positive_correlations, "Positive", significance_level)
+        pos_fig = create_correlation_figure(data, positive_correlations, "Positive", significance_level, well_name)
     else:
         print(f"\n❌ No significant positive correlations found (r ≥ {min_correlation}, p ≤ {significance_level})")
     
@@ -1808,7 +1668,7 @@ def visualize_significant_correlations(data, correlation_results, significance_l
         for log_var, lab_var, r, p, n in negative_correlations:
             print(f"{log_var} ↔ {lab_var}: r = {r:.3f} (p = {p:.4f}, n = {n})")
             
-        neg_fig = create_correlation_figure(data, negative_correlations, "Negative", significance_level)
+        neg_fig = create_correlation_figure(data, negative_correlations, "Negative", significance_level, well_name)
     else:
         print(f"\n❌ No significant negative correlations found (r ≤ -{min_correlation}, p ≤ {significance_level})")
     
@@ -1817,7 +1677,7 @@ def visualize_significant_correlations(data, correlation_results, significance_l
         "negative_correlations": negative_correlations
     }
     
-def create_correlation_network(correlation_results, min_correlation=0.6, max_connections=50):
+def create_correlation_network(correlation_results, well_name, min_correlation=0.6, max_connections=50):
     """
     Create a network visualization of significant correlations.
     
@@ -1909,10 +1769,11 @@ def create_correlation_network(correlation_results, min_correlation=0.6, max_con
     plt.title(f'Network of Strong Correlations (|r| ≥ {min_correlation}, p ≤ 0.05)', fontsize=14)
     plt.axis('off')
     plt.tight_layout()
-    plt.savefig('imgs/correlation_network.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'imgs/{well_name}_correlation_network.png', dpi=300, bbox_inches='tight')
     plt.show()
 
 def analyze_correlations(all_wells, lab_vars, log_vars, min_corr=0.5):
+    
     """
     Analyzes correlations between lab and log variables across wells.
     
@@ -2126,3 +1987,38 @@ def analyze_correlations(all_wells, lab_vars, log_vars, min_corr=0.5):
             plt.show()
     
     return well_correlations
+
+def plot_correlation_distribution(r_vals, well_name, stats_text):
+    mean_r = np.mean(r_vals)
+    median_r = np.median(r_vals)
+    min_r = np.min(r_vals)
+    max_r = np.max(r_vals)
+    std_r = np.std(r_vals)
+    strong_pos_count = np.sum(r_vals > 0.6)
+    strong_neg_count = np.sum(r_vals < -0.6)
+    moderate_count = np.sum((np.abs(r_vals) > 0.3) & (np.abs(r_vals) <= 0.6))
+    weak_count = np.sum(np.abs(r_vals) <= 0.3)
+
+    plt.figure(figsize=(10, 6))
+    ax = plt.subplot(111)
+    sns.histplot(r_vals, bins=25, kde=True, color='skyblue', 
+                 line_kws={'linewidth': 2}, alpha=0.7)
+    plt.axvline(x=0, color='gray', linestyle='--', alpha=0.7)
+    plt.axvline(x=mean_r, color='red', linestyle='-', label=f'Mean ({mean_r:.2f})')
+    plt.axvline(x=median_r, color='green', linestyle='-', label=f'Median ({median_r:.2f})')
+    plt.axvspan(-1, -0.6, alpha=0.2, color='red', label='Strong negative')
+    plt.axvspan(-0.6, -0.3, alpha=0.1, color='orange', label='Moderate negative')
+    plt.axvspan(-0.3, 0.3, alpha=0.1, color='gray', label='Weak')
+    plt.axvspan(0.3, 0.6, alpha=0.1, color='blue', label='Moderate positive')
+    plt.axvspan(0.6, 1, alpha=0.2, color='green', label='Strong positive')
+    plt.text(1.02, 0.5, stats_text, transform=ax.transAxes, fontsize=9,
+             verticalalignment='center', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+    plt.title("Distribution of Pearson Correlation Coefficients", fontsize=14)
+    plt.xlabel("Correlation Coefficient (r)", fontsize=12)
+    plt.ylabel("Frequency", fontsize=12)
+    plt.grid(True, alpha=0.3)
+    plt.legend(loc='upper left', fontsize=9)
+    plt.tight_layout()
+    plt.subplots_adjust(right=0.75)
+    plt.savefig(f'imgs/{well_name}_correlation_distribution.png', dpi=300, bbox_inches='tight')
+    plt.show()
