@@ -2317,3 +2317,4 @@ def create_distribution_grid(data, variables, ncols=4, figsize_per_plot=(4, 3), 
     
     plt.tight_layout()
     return fig
+# dd
