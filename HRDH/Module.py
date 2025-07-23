@@ -1678,8 +1678,6 @@ def enhanced_correlation_analysis(data, log_vars, lab_vars, significance_level=0
     
     return results
 
-
-
 # Define the create_correlation_figure function 
 def create_correlation_figure(data, correlations, correlation_type, significance_level=0.05):
     """Create scatter plots with regression lines for specified correlations"""
@@ -1913,3 +1911,218 @@ def create_correlation_network(correlation_results, min_correlation=0.6, max_con
     plt.tight_layout()
     plt.savefig('imgs/correlation_network.png', dpi=300, bbox_inches='tight')
     plt.show()
+
+def analyze_correlations(all_wells, lab_vars, log_vars, min_corr=0.5):
+    """
+    Analyzes correlations between lab and log variables across wells.
+    
+    Parameters:
+    - all_wells: DataFrame containing well data
+    - lab_vars: List of laboratory measurement columns
+    - log_vars: List of log measurement columns
+    - min_corr: Minimum correlation value to highlight (absolute value)
+    """
+    # Store all well correlations for comparison
+    well_correlations = {}
+    filtered_vars_by_well = {}  # Track filtered variables for each well
+    top_correlations_by_well = {}
+    
+    # Analyze each well separately
+    for well, data in all_wells.groupby('Well'):
+        # Skip wells with too few samples
+        if len(data) < 5:
+            print(f"Skipping {well}: insufficient samples ({len(data)})")
+            continue
+            
+        print(f"\n{'='*50}\nAnalyzing correlations for well: {well} ({len(data)} samples)\n{'='*50}")
+        
+        # Filter out zero/constant/NaN columns for this well
+        filtered_lab_vars = [col for col in lab_vars if not (data[col] == 0).all() and not data[col].isna().all()]
+        filtered_lab_vars = [col for col in filtered_lab_vars if data[col].std() > 0]
+        
+        filtered_log_vars = [col for col in log_vars if not (data[col] == 0).all() and not data[col].isna().all()]
+        filtered_log_vars = [col for col in filtered_log_vars if data[col].std() > 0]
+        
+        # Store filtered variables for this well for later use
+        filtered_vars_by_well[well] = {
+            'lab': filtered_lab_vars,
+            'log': filtered_log_vars
+        }
+        
+        print(f"Using {len(filtered_lab_vars)} lab variables and {len(filtered_log_vars)} log variables after filtering")
+        
+        # Calculate correlation matrix between lab and log variables
+        corr = data[filtered_lab_vars + filtered_log_vars].corr().loc[filtered_log_vars, filtered_lab_vars]
+        well_correlations[well] = corr
+        
+        # Plot heatmap with improved readability
+        plt.figure(figsize=(16, 12))
+        mask = np.abs(corr) < min_corr  # Mask weak correlations
+        
+        # Use a more readable colormap with better contrast
+        sns.heatmap(corr, cmap='RdYlGn', vmin=-1, vmax=1, center=0, 
+                   annot=True, fmt='.2f', mask=mask, 
+                   linewidths=0.5, cbar_kws={'label': 'Correlation Coefficient'},
+                   annot_kws={'size': 8})  # Smaller font for correlation values
+        
+        plt.title(f'Lab-Log Correlations - {well}', fontsize=16)
+        plt.xticks(rotation=45, ha='right', fontsize=9)
+        plt.yticks(fontsize=9)
+        plt.tight_layout()
+        plt.show()
+        
+        # Identify and display top correlations in a more structured way
+        corr_flat = corr.unstack()
+        top_corr = corr_flat.abs().sort_values(ascending=False).head(10)
+        top_correlations_by_well[well] = top_corr
+        
+        # Format output as a table
+        print("\nTop correlations:")
+        corr_table = pd.DataFrame({
+            'Log Variable': [idx[0] for idx in top_corr.index],
+            'Lab Variable': [idx[1] for idx in top_corr.index],
+            'Correlation': top_corr.values
+        })
+        print(corr_table.to_string(index=False, float_format=lambda x: f"{x:.3f}"))
+    
+    # Cross-well correlation comparison (for common pairs)
+    if len(well_correlations) >= 2:
+        print("\n\nComparison of key correlations across wells:")
+        
+        # Find common variables across all wells first
+        common_logs = set.intersection(*[set(filtered_vars_by_well[well]['log']) for well in well_correlations.keys()])
+        common_labs = set.intersection(*[set(filtered_vars_by_well[well]['lab']) for well in well_correlations.keys()])
+        
+        print(f"Variables present in all wells: {len(common_logs)} log variables and {len(common_labs)} lab variables")
+        
+        if len(common_logs) == 0 or len(common_labs) == 0:
+            print("No common variables across all wells. Using top correlations instead.")
+            
+            # Find correlation pairs from each well's top correlations
+            all_pairs = []
+            for well, corr_data in top_correlations_by_well.items():
+                all_pairs.extend([(idx[0], idx[1]) for idx in corr_data.index])
+            
+            # Count frequency of each pair across wells
+            from collections import Counter
+            pair_counts = Counter(all_pairs)
+            
+            # Only use pairs that appear in at least 2 wells
+            common_pairs = [pair for pair, count in pair_counts.items() if count >= 2]
+            
+            if not common_pairs:
+                print("No common correlation pairs found across wells.")
+                return well_correlations
+                
+            print(f"Found {len(common_pairs)} correlation pairs that appear in multiple wells")
+            
+            # Create the DataFrame with string indices
+            comparison_indices = [f"{pair[0]} vs {pair[1]}" for pair in common_pairs]
+            comparison = pd.DataFrame(index=comparison_indices, columns=well_correlations.keys())
+            
+            # Fill in correlation values where available
+            valid_correlations = 0
+            for i, pair in enumerate(common_pairs):
+                log_var, lab_var = pair
+                idx = comparison_indices[i]  # Get the string index
+                
+                # Debug which wells have these variables
+                wells_with_var = []
+                for well, corr_df in well_correlations.items():
+                    if log_var in filtered_vars_by_well[well]['log'] and lab_var in filtered_vars_by_well[well]['lab']:
+                        wells_with_var.append(well)
+                        comparison.loc[idx, well] = corr_df.loc[log_var, lab_var]
+                        valid_correlations += 1
+                    else:
+                        comparison.loc[idx, well] = np.nan
+                
+                # Debug output
+                if wells_with_var:
+                    print(f"Pair '{idx}' is present in wells: {', '.join(wells_with_var)}")
+                else:
+                    print(f"WARNING: Pair '{idx}' not found in any well's filtered variables!")
+            
+            if valid_correlations == 0:
+                print("No valid correlation values found! Check data consistency across wells.")
+                return well_correlations
+            
+            # Display table of correlation comparisons
+            print(comparison.head(15).to_string(float_format=lambda x: f"{x:.3f}" if not pd.isna(x) else "N/A"))
+            
+            # Visualize comparison of top correlations across wells
+            # Only include pairs with data for at least half of the wells
+            min_wells_required = len(well_correlations) // 2
+            top_common = comparison.dropna(thresh=min_wells_required).head(8)
+            
+            if not top_common.empty:
+                top_common = top_common.astype(float)  # Convert to numeric before plotting
+                # IMPROVED VISUALIZATION - larger figure and better formatting
+                plt.figure(figsize=(14, 10))
+                
+                # Enhanced heatmap with RdYlGn colormap and better sizing
+                sns.heatmap(top_common.T, 
+                    cmap='RdYlGn',
+                    center=0, 
+                    annot=True, 
+                    fmt='.2f',
+                    annot_kws={'size': 12},
+                    linewidths=1,
+                    square=True)
+                
+                plt.title('Comparison of Key Correlations Across Wells', fontsize=16)
+                plt.ylabel('Well', fontsize=14)
+                plt.xlabel('Correlation Pair', fontsize=14)
+                plt.xticks(rotation=45, ha='right', fontsize=12)
+                plt.yticks(fontsize=12)
+                plt.tight_layout()
+                plt.show()
+            else:
+                print("Not enough common correlations to create visualization")
+        else:
+            # If we have common variables across all wells, use these to create a consistent correlation matrix
+            print("Using common variables to create consistent correlation matrix")
+            
+            # Prepare a DataFrame for comparison
+            all_pairs = [(log, lab) for log in common_logs for lab in common_labs]
+            comparison_indices = [f"{log} vs {lab}" for log, lab in all_pairs]
+            comparison = pd.DataFrame(index=comparison_indices, columns=well_correlations.keys())
+            
+            # Fill in the correlation values
+            for i, (log_var, lab_var) in enumerate(all_pairs):
+                idx = comparison_indices[i]
+                for well, corr_df in well_correlations.items():
+                    comparison.loc[idx, well] = corr_df.loc[log_var, lab_var]
+            
+            # Sort by average absolute correlation value
+            avg_abs_corr = comparison.abs().mean(axis=1)
+            comparison = comparison.loc[avg_abs_corr.sort_values(ascending=False).index]
+            
+            # Display top correlations
+            print(comparison.head(15).to_string(float_format=lambda x: f"{x:.3f}" if not pd.isna(x) else "N/A"))
+            
+            # Visualize top correlations
+            top_common = comparison.head(8)
+            top_common = top_common.astype(float)  # Convert to numeric before plotting
+            
+            # IMPROVED VISUALIZATION - larger figure and better formatting
+            plt.figure(figsize=(14, 10))
+            
+            # Enhanced heatmap with RdYlGn colormap and better sizing
+            sns.heatmap(top_common.T, 
+                       cmap='RdYlGn',
+                       center=0, 
+                       annot=True, 
+                       fmt='.2f',
+                       annot_kws={'size': 12},
+                       linewidths=1,
+                       square=True)
+            
+            plt.title('Comparison of Key Correlations Across Wells', fontsize=16)
+            plt.ylabel('Well', fontsize=14)
+            plt.xlabel('Correlation Pair', fontsize=14)
+            plt.xticks(rotation=45, ha='right', fontsize=12)
+            plt.yticks(fontsize=12)
+            plt.tight_layout()
+            plt.show()
+    
+    return well_correlations
