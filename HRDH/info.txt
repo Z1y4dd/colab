@@ -86,17 +86,22 @@ Log Range: 14305.0 - 15820.0 ft
    • RTHUC      | Thorium to Uranium ratio
    • RUKC       | Uranium to Potassium ratio
    • THC        | Thorium Concentration
+   • U          | Uranium content                | Units: ppm
    • UC         | Uranium Concentration
-   • HRD1       | Long space spectrum count rate 140-200 keV | Units: *
-   • HRD2       | Long space spectrum count rate 200-540 keV | Units: * 
-   • K          | Potassium content              | Units: %*
+   • K          | Potassium content              | Units: %    *
    • KTH        | Stripped potassium-thorium     | Units: gAPI *
-   • LSN        | Long space neutron             | Units: 1/s *
-   • PE         | Photo electric cross-section   | Units: b/e *
-   • QPKS       | Number of peaks found          | Units: *
    • RTHK       | Ratio of thorium to potassium  | Units: 
    • RTHU       | Ratio of thorium to uranium    | Units: 
    • RUK        | Ratio of uranium to potassium  | Units: 
+
+
+   • HRD1       | Long space spectrum count rate 140-200 keV | Units: *
+   • HRD2       | Long space spectrum count rate 200-540 keV | Units: * 
+
+
+   • LSN        | Long space neutron             | Units: 1/s *
+   • PE         | Photo electric cross-section   | Units: b/e *
+   • QPKS       | Number of peaks found          | Units: *
 
    • SFT2       | Long space spectrum count rate 100-140 keV | Units:* 
    • SHR        | Soft to hard count rate ratio (SOFT/HRD2) | Units: *
@@ -111,7 +116,6 @@ Log Range: 14305.0 - 15820.0 ft
    • TEN        | Differential tension           | Units: lbf
    • TH         | Thorium concentration          | Units: ppm
    • TTEN       | Total tension                  | Units: lbf
-   • U          | Uranium content                | Units: ppm
    • WTBH       | Temperature of borehole        | Units: degF
    • ZCOR       | Density correction             | Units: g/cm3
    • ZDEN       | Formation bulk density         | Units: g/cm3
