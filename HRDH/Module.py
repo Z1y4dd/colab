@@ -11,6 +11,11 @@ import matplotlib.pyplot as plt
 from scipy.stats import pearsonr, spearmanr
 import networkx as nx
 from matplotlib.colors import LinearSegmentedColormap
+# Create combined scatter plots for top correlations across all wells
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+from scipy import stats
 
 # loading dlis files
 def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
@@ -1558,8 +1563,6 @@ def create_distribution_grid(data, variables, ncols=4, figsize_per_plot=(4, 3), 
     plt.tight_layout()
     return fig
 
-
-
 def enhanced_correlation_analysis(data, log_vars, lab_vars, significance_level=0.05):
     
     
@@ -2256,4 +2259,262 @@ def create_distribution_grid(data, variables, ncols=4, figsize_per_plot=(4, 3), 
     
     plt.tight_layout()
     return fig
-# dd
+# all analysis
+# Find correlation pairs that exist in multiple wells
+def find_common_correlations(all_wells, lab_vars, log_vars, min_wells=2):
+    """Find variable pairs that exist in at least min_wells"""
+    pair_counts = {}
+    
+    for well in all_wells['Well'].unique():
+        well_data = all_wells[all_wells['Well'] == well]
+        
+        for lab_var in lab_vars:
+            for log_var in log_vars:
+                # Check if both variables exist and have sufficient data
+                if lab_var in well_data.columns and log_var in well_data.columns:
+                    valid_data = well_data[[lab_var, log_var]].dropna()
+                    if len(valid_data) >= 3:  # Need at least 3 points
+                        pair = (log_var, lab_var)
+                        if pair not in pair_counts:
+                            pair_counts[pair] = []
+                        pair_counts[pair].append(well)
+    
+    # Filter pairs that exist in at least min_wells
+    common_pairs = {pair: wells for pair, wells in pair_counts.items() if len(wells) >= min_wells}
+    return common_pairs
+
+# Get all available variable pairs and their statistics
+def get_all_pair_statistics(all_wells, lab_vars, log_vars):
+    """Calculate statistics for all possible variable pairs"""
+    
+    pair_stats = []
+    
+    for lab_var in lab_vars:
+        for log_var in log_vars:
+            wells_with_pair = []
+            correlations = []
+            total_samples = 0
+            
+            for well in all_wells['Well'].unique():
+                well_data = all_wells[all_wells['Well'] == well]
+                
+                if lab_var in well_data.columns and log_var in well_data.columns:
+                    valid_data = well_data[[lab_var, log_var]].dropna()
+                    
+                    if len(valid_data) >= 3:
+                        corr = valid_data.corr().iloc[0, 1]
+                        correlations.append(corr)
+                        wells_with_pair.append(well)
+                        total_samples += len(valid_data)
+            
+            if correlations:
+                pair_stats.append({
+                    'Log_Variable': log_var,
+                    'Lab_Variable': lab_var,
+                    'Wells_Count': len(wells_with_pair),
+                    'Avg_Correlation': np.mean(correlations),
+                    'Max_Correlation': max(correlations),
+                    'Min_Correlation': min(correlations),
+                    'Total_Samples': total_samples,
+                    'Wells': ', '.join(wells_with_pair)
+                })
+    
+    # Convert to DataFrame and sort
+    stats_df = pd.DataFrame(pair_stats)
+    stats_df['Abs_Avg_Corr'] = stats_df['Avg_Correlation'].abs()
+    stats_df = stats_df.sort_values('Abs_Avg_Corr', ascending=False)
+    
+    return stats_df
+
+# Create combined scatter plots
+def create_combined_scatter_plots(all_wells, common_pairs, n_plots=9):
+    """Create scatter plots showing all wells together for each correlation pair"""
+    
+    # Calculate correlation strength for each pair across all wells
+    pair_correlations = []
+    
+    for (log_var, lab_var), wells in common_pairs.items():
+        # Calculate average absolute correlation across wells
+        correlations = []
+        for well in wells:
+            well_data = all_wells[all_wells['Well'] == well]
+            valid_data = well_data[[log_var, lab_var]].dropna()
+            if len(valid_data) >= 3:
+                corr = valid_data.corr().iloc[0, 1]
+                correlations.append(abs(corr))
+        
+        if correlations:
+            avg_corr = np.mean(correlations)
+            pair_correlations.append(((log_var, lab_var), avg_corr, wells))
+    
+    # Sort by average correlation strength
+    pair_correlations.sort(key=lambda x: x[1], reverse=True)
+    
+    # Select top pairs
+    top_pairs = pair_correlations[:n_plots]
+    
+    # Create figure
+    n_cols = min(3, len(top_pairs))
+    n_rows = (len(top_pairs) + n_cols - 1) // n_cols
+    
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(6*n_cols, 5*n_rows))
+    if n_rows * n_cols == 1:
+        axes = [axes]
+    else:
+        axes = axes.flatten()
+    
+    # Create scatter plots
+    for idx, ((log_var, lab_var), avg_corr, wells) in enumerate(top_pairs):
+        if idx >= len(axes):
+            break
+            
+        ax = axes[idx]
+        
+        # Track overall statistics
+        all_x = []
+        all_y = []
+        
+        # Plot each well with different color
+        for well in wells:
+            well_data = all_wells[all_wells['Well'] == well]
+            valid_data = well_data[[log_var, lab_var]].dropna()
+            
+            if len(valid_data) > 0:
+                # Individual well scatter
+                ax.scatter(valid_data[log_var], valid_data[lab_var], 
+                          color=well_colors.get(well, 'gray'),
+                          alpha=0.6, s=50, label=well, edgecolor='k', linewidth=0.5)
+                
+                # Collect for overall regression
+                all_x.extend(valid_data[log_var].values)
+                all_y.extend(valid_data[lab_var].values)
+        
+        # Add overall regression line
+        if len(all_x) > 3:
+            all_x = np.array(all_x)
+            all_y = np.array(all_y)
+            
+            # Calculate overall correlation
+            overall_corr, p_value = stats.pearsonr(all_x, all_y)
+            
+            # Add regression line
+            z = np.polyfit(all_x, all_y, 1)
+            p = np.poly1d(z)
+            x_line = np.linspace(all_x.min(), all_x.max(), 100)
+            ax.plot(x_line, p(x_line), 'k--', linewidth=2, alpha=0.8, 
+                   label=f'Overall r={overall_corr:.3f}')
+        
+        # Customize plot
+        ax.set_xlabel(log_var.replace('Log_', ''), fontsize=11)
+        ax.set_ylabel(lab_var.replace('Lab_', ''), fontsize=11)
+        ax.set_title(f'{log_var.replace("Log_", "")} vs {lab_var.replace("Lab_", "")}', 
+                    fontsize=12, fontweight='bold')
+        ax.grid(True, alpha=0.3, linestyle='--')
+        
+        # Add legend
+        ax.legend(loc='best', fontsize=8, framealpha=0.9)
+    
+    # Hide unused subplots
+    for idx in range(len(top_pairs), len(axes)):
+        axes[idx].set_visible(False)
+    
+    plt.suptitle('Combined Well Correlations - All Wells Together', fontsize=16, y=1.02)
+    plt.tight_layout()
+    plt.savefig('imgs/combined_well_correlations.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    
+    # Print summary
+    print("\nCOMBINED CORRELATION ANALYSIS SUMMARY:")
+    print(f"Found {len(common_pairs)} variable pairs present in multiple wells")
+    print(f"\nTop {len(top_pairs)} correlations shown:")
+    for (log_var, lab_var), avg_corr, wells in top_pairs:
+        print(f"{log_var} vs {lab_var}: avg |r|={avg_corr:.3f} (in {len(wells)} wells)")
+
+# Analyze specific variable pairs across all wells
+def analyze_specific_pairs(all_wells, variable_pairs):
+    """Create detailed plots for specific variable pairs"""
+    
+    fig, axes = plt.subplots(len(variable_pairs), 2, figsize=(14, 5*len(variable_pairs)))
+    if len(variable_pairs) == 1:
+        axes = axes.reshape(1, -1)
+    
+    for idx, (log_var, lab_var) in enumerate(variable_pairs):
+        # Combined scatter plot (left)
+        ax_scatter = axes[idx, 0]
+        
+        # Correlation comparison (right)
+        ax_corr = axes[idx, 1]
+        
+        well_correlations = []
+        
+        # Plot each well
+        for well in all_wells['Well'].unique():
+            well_data = all_wells[all_wells['Well'] == well]
+            
+            if log_var in well_data.columns and lab_var in well_data.columns:
+                valid_data = well_data[[log_var, lab_var]].dropna()
+                
+                if len(valid_data) >= 3:
+                    # Scatter plot
+                    ax_scatter.scatter(valid_data[log_var], valid_data[lab_var],
+                                     color=well_colors.get(well, 'gray'),
+                                     alpha=0.6, s=50, label=well, edgecolor='k', linewidth=0.5)
+                    
+                    # Calculate correlation
+                    corr, p_val = stats.pearsonr(valid_data[log_var], valid_data[lab_var])
+                    well_correlations.append({
+                        'Well': well,
+                        'Correlation': corr,
+                        'p-value': p_val,
+                        'n': len(valid_data)
+                    })
+        
+        # Add overall regression line
+        all_data = all_wells[[log_var, lab_var]].dropna()
+        if len(all_data) > 3:
+            overall_corr, overall_p = stats.pearsonr(all_data[log_var], all_data[lab_var])
+            
+            # Regression line
+            z = np.polyfit(all_data[log_var], all_data[lab_var], 1)
+            p = np.poly1d(z)
+            x_line = np.linspace(all_data[log_var].min(), all_data[log_var].max(), 100)
+            ax_scatter.plot(x_line, p(x_line), 'k--', linewidth=2, 
+                          label=f'Overall: r={overall_corr:.3f}, p={overall_p:.4f}')
+        
+        # Customize scatter plot
+        ax_scatter.set_xlabel(log_var.replace('Log_', ''), fontsize=12)
+        ax_scatter.set_ylabel(lab_var.replace('Lab_', ''), fontsize=12)
+        ax_scatter.set_title(f'{log_var.replace("Log_", "")} vs {lab_var.replace("Lab_", "")}', 
+                           fontsize=14, fontweight='bold')
+        ax_scatter.grid(True, alpha=0.3)
+        ax_scatter.legend(loc='best', fontsize=9)
+        
+        # Create correlation comparison bar plot
+        if well_correlations:
+            corr_df = pd.DataFrame(well_correlations)
+            colors = [well_colors.get(w, 'gray') for w in corr_df['Well']]
+            
+            bars = ax_corr.bar(corr_df['Well'], corr_df['Correlation'], color=colors, alpha=0.7)
+            
+            # Add significance markers
+            for i, (_, row) in enumerate(corr_df.iterrows()):
+                if row['p-value'] < 0.05:
+                    ax_corr.text(i, row['Correlation'] + 0.02, '*', 
+                               ha='center', fontsize=14, fontweight='bold')
+                
+                # Add sample size
+                ax_corr.text(i, 0.02, f"n={row['n']}", 
+                           ha='center', va='bottom', fontsize=9)
+            
+            ax_corr.axhline(y=0, color='black', linestyle='-', linewidth=0.5)
+            ax_corr.set_ylabel('Correlation Coefficient', fontsize=12)
+            ax_corr.set_title('Correlation by Well (* = p<0.05)', fontsize=12)
+            ax_corr.set_ylim(-1, 1)
+            ax_corr.grid(True, alpha=0.3, axis='y')
+    
+    plt.suptitle('Detailed Variable Pair Analysis Across All Wells', fontsize=16, y=1.02)
+    plt.tight_layout()
+    plt.savefig('imgs/specific_pairs_analysis.png', dpi=300, bbox_inches='tight')
+    plt.show()
+
+
