@@ -2259,3 +2259,64 @@ def create_distribution_grid(data, variables, ncols=4, figsize_per_plot=(4, 3), 
     
     plt.tight_layout()
     return fig
+
+
+
+
+# All_well_analysis
+def load_all_wells_csv(base_path="."):
+    
+
+    """Load all joined CSV files and combine them into a single DataFrame"""
+    
+    # Find all joined CSV files
+    csv_files = list(Path(base_path).glob('HRDH_*/HRDH_*_joined.csv'))
+    
+    print(f"Found {len(csv_files)} joined CSV files:")
+    for file in csv_files:
+        print(f"{file}")
+    
+    if len(csv_files) == 0:
+        print("No joined CSV files found!")
+        return pd.DataFrame()
+    
+    # Load each file and add well identifier
+    all_wells = []
+    
+    for csv_file in csv_files:
+        try:
+            # Extract well name from folder name
+            well_name = csv_file.parent.name
+            
+            # Load data
+            df = pd.read_csv(csv_file)
+            
+            # Add well identifier as the first column for easy identification
+            df.insert(0, 'Well', well_name)
+            
+            # Add to list
+            all_wells.append(df)
+            
+            print(f"Loaded {well_name}: {df.shape[0]} samples, {df.shape[1]} columns")
+            
+        except Exception as e:
+            print(f"Error loading {csv_file}: {e}")
+            continue
+    
+    if len(all_wells) == 0:
+        print("No files were successfully loaded!")
+        return pd.DataFrame()
+    
+    # Concatenate all dataframes
+    df_all = pd.concat(all_wells, ignore_index=True)
+    
+    # Ensure Well column is properly typed
+    df_all['Well'] = df_all['Well'].astype('category')
+    
+    print(f"\nCombined dataset: {df_all.shape[0]} total samples from {df_all['Well'].nunique()} wells")
+    print(f"Wells: {', '.join(df_all['Well'].unique())}")
+    print(f"Sample distribution by well:")
+    print(df_all['Well'].value_counts().to_string())
+    
+    return df_all
+
