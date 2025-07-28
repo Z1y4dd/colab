@@ -2264,6 +2264,81 @@ def create_distribution_grid(data, variables, ncols=4, figsize_per_plot=(4, 3), 
 
 ########################################################################################
 # All_well_analysis
+def fix_duplicate_columns(df, well_name):
+    """Fix duplicate columns by merging data from duplicates into the original column."""
+    columns = df.columns.tolist()
+    seen = {}
+    duplicates = {}
+    
+    for i, col in enumerate(columns):
+        if col in seen:
+            if col not in duplicates:
+                duplicates[col] = [seen[col]]
+            duplicates[col].append(i)
+        else:
+            seen[col] = i
+    
+    if duplicates:
+        print(f"\nFound duplicate columns in {well_name}:")
+        for col, indices in duplicates.items():
+            print(f"  - '{col}' appears at indices: {indices}")
+        
+        # Fix duplicates by merging data
+        for col_name, indices in duplicates.items():
+            dup_cols = [df.iloc[:, idx] for idx in indices]
+            merged_data = dup_cols[0].copy()
+            
+            for dup_col in dup_cols[1:]:
+                mask = merged_data.isna() & ~dup_col.isna()
+                merged_data[mask] = dup_col[mask]
+            
+            df.iloc[:, indices[0]] = merged_data
+            original_nulls = dup_cols[0].isna().sum()
+            final_nulls = merged_data.isna().sum()
+            recovered = original_nulls - final_nulls
+            
+            print(f"    Merged {len(indices)} columns named '{col_name}'")
+            print(f"    Recovered {recovered} missing values")
+        
+        df = df.loc[:, ~df.columns.duplicated(keep='first')]
+        print(f"  Removed duplicate columns")
+    
+    return df
+
+def load_all_wells_csv_fixed():
+    """Load all well CSV files with duplicate column fixing."""
+    base_path = Path('.')
+    all_data = []
+    
+    joined_files = list(base_path.glob('HRDH_*/HRDH_*_joined.csv'))
+    
+    if not joined_files:
+        raise FileNotFoundError("No joined CSV files found")
+    
+    print(f"Found {len(joined_files)} joined CSV files:")
+    for file in joined_files:
+        print(f"  {file}")
+    
+    for file in joined_files:
+        well_name = file.parent.name
+        df = pd.read_csv(file)
+        
+        # Fix duplicate columns if present
+        df = fix_duplicate_columns(df, well_name)
+        
+        # Add well identifier
+        df['Well'] = well_name
+        df.columns = df.columns.str.strip()
+        
+        print(f"Loaded {well_name}: {len(df)} samples, {len(df.columns)} columns")
+        all_data.append(df)
+    
+    df_combined = pd.concat(all_data, ignore_index=True, sort=True)
+    print(f"\nCombined dataset: {len(df_combined)} total samples from {len(all_data)} wells")
+    print(f"Total columns after merge: {len(df_combined.columns)}")
+    
+    return df_combined
+
 def load_all_wells_csv(base_path="."):
     
 
