@@ -152,13 +152,80 @@ Log Range: 14305.0 - 15820.0 ft
 
 
 
-well_name_0_09JAN2012_ZDL-CN-DSL_ML_BA.dlis
-│     │        │     │    │   └─ BA   ← “Basic ASCII” export variant
-│     │        │     │    └─ ML   ← Machine-log (raw) version
-│     │        │     └─ DSL  ← Density log curve
-│     │        └─ CN   ← Compensated Neutron porosity
-│     └─ ZDL  ← Gamma-ray curve mnemonic
-└─ 09JAN2012  ← Acquisition date
+XRF Lab Element Descriptions
+============================
+
+Each of the following variables represents the concentration of a chemical element measured using X-Ray Fluorescence (XRF).
+These are used in geochemical analysis of core samples to infer mineralogical, depositional, and diagenetic information.
+
+----------------------------
+Major Elements (Rock Formers)
+----------------------------
+
+ Sodium (Na)
+  - Common in feldspars (albite) and evaporites.
+  - Indicates salinity or hydrothermal alteration.
+
+ Magnesium (Mg)
+  - Present in dolomite, chlorite, and serpentine.
+  - Associated with carbonates or mafic inputs.
+
+Lab_XRF_Al  - Aluminum (Al)
+  - Found in clays (kaolinite, illite) and feldspars.
+  - High values may indicate shaliness or alteration.
+
+ Silicon (Si)
+  - Primary component of quartz and silicates.
+  - High Si usually means quartz-rich, clean sandstones.
+
+ Phosphorus (P)
+  - Typically from apatite or organics.
+  - Can point to phosphatic or organic-rich zones.
+
+ Sulfur (S)
+  - Found in pyrite, gypsum, and other sulfides/sulfates.
+  - Indicates reducing environments, sour gas potential.
+
+ Chlorine (Cl)
+  - Present in halite or brine-saturated samples.
+  - Associated with saline fluids or evaporites.
+
+ Potassium (K)
+  - Common in illite, K-feldspar, and mica.
+  - Useful for clay typing and correlates with gamma ray logs.
+
+ Calcium (Ca)
+  - Dominant in calcite, aragonite, dolomite.
+  - Indicates carbonate content or diagenesis.
+
+-------------------------------
+Minor / Trace Elements (Diagnostic)
+-------------------------------
+
+ Titanium (Ti)
+  - Occurs in heavy minerals (e.g., rutile).
+  - Indicates detrital input or sediment maturity.
+
+ Manganese (Mn)
+  - Found in carbonates and oxides.
+  - Redox-sensitive; may reflect diagenesis or water chemistry shifts.
+
+ Iron (Fe)
+  - Present in pyrite, hematite, siderite, clays.
+  - Indicates redox conditions and mineral alteration.
+
+ Zirconium (Zr)
+  - Associated with zircon.
+  - Reflects sediment provenance and maturity.
+
+ Strontium (Sr)
+  - Substitutes for Ca in carbonates.
+  - Sr/Ca ratio is useful for paleoenvironment analysis.
+
+ Barium (Ba)
+  - Found in barite.
+  - Indicates hydrothermal fluids or organic-rich deposition zones.
+
 
 
 

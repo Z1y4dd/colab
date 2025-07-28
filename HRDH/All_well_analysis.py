@@ -16,8 +16,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 from scipy import stats
-
-
 ########################################################################################
 # All_well_analysis
 def fix_duplicate_columns(df, well_name):
@@ -151,7 +149,6 @@ def load_all_wells_csv(base_path="."):
     
     return df_all
 
-def find_all_correlations_by_well_count(well_correlations, min_correlation=0.5):
     """Find ALL correlations and categorize them by how many wells they appear in."""
     correlation_tracker = {}
     all_wells = list(well_correlations.keys())
@@ -364,52 +361,272 @@ def visualize_missing_data_by_well(df_all, lab_columns, log_columns):
         print(f"  - {row['Variable']}: {row['Min_Completeness']:.1f}% to {row['Max_Completeness']:.1f}% (range: {row['Range']:.1f}%)")
 
 
-def calculate_correlations_by_well(df_all, lab_columns, log_columns):
-    """Calculate correlation matrices between lab and log measurements for each well."""
+def calculate_correlations_by_well(df_all, lab_columns, log_columns, min_samples=10):
+    """
+    Calculate correlation matrices between lab and log measurements for each well.
+    Enhanced version with additional statistics and metadata.
+    """
     well_correlations = {}
+    well_correlation_stats = {}
     wells = sorted(df_all['Well'].unique())
+    
+    print("="*80)
+    print("CALCULATING CORRELATIONS BY WELL")
+    print("="*80)
     
     for well in wells:
         well_data = df_all[df_all['Well'] == well]
         
-        # Create correlation matrix
+        # Create correlation matrix and additional matrices for p-values and sample sizes
         corr_matrix = pd.DataFrame(index=log_columns, columns=lab_columns, dtype=float)
+        pvalue_matrix = pd.DataFrame(index=log_columns, columns=lab_columns, dtype=float)
+        sample_size_matrix = pd.DataFrame(index=log_columns, columns=lab_columns, dtype=int)
+        
+        valid_pairs = 0
+        total_pairs = len(log_columns) * len(lab_columns)
         
         for log_col in log_columns:
             for lab_col in lab_columns:
                 # Get non-null data
                 valid_data = well_data[[log_col, lab_col]].dropna()
+                n_samples = len(valid_data)
                 
-                if len(valid_data) >= 3:  # Need at least 3 points for correlation
-                    r, _ = pearsonr(valid_data[log_col], valid_data[lab_col])
+                if n_samples >= min_samples:  # Configurable minimum sample threshold
+                    r, p = pearsonr(valid_data[log_col], valid_data[lab_col])
                     corr_matrix.loc[log_col, lab_col] = r
+                    pvalue_matrix.loc[log_col, lab_col] = p
+                    sample_size_matrix.loc[log_col, lab_col] = n_samples
+                    valid_pairs += 1
+                else:
+                    sample_size_matrix.loc[log_col, lab_col] = n_samples
         
-        well_correlations[well] = corr_matrix
+        well_correlations[well] = {
+            'correlation': corr_matrix,
+            'pvalue': pvalue_matrix,
+            'sample_size': sample_size_matrix
+        }
+        
+        # Calculate well-specific statistics
+        valid_correlations = corr_matrix.values.flatten()
+        valid_correlations = valid_correlations[~np.isnan(valid_correlations)]
+        
+        well_correlation_stats[well] = {
+            'total_pairs': total_pairs,
+            'valid_pairs': valid_pairs,
+            'coverage': (valid_pairs / total_pairs) * 100,
+            'mean_abs_correlation': np.mean(np.abs(valid_correlations)) if len(valid_correlations) > 0 else 0,
+            'max_correlation': np.max(valid_correlations) if len(valid_correlations) > 0 else np.nan,
+            'min_correlation': np.min(valid_correlations) if len(valid_correlations) > 0 else np.nan,
+            'strong_correlations': np.sum(np.abs(valid_correlations) >= 0.7) if len(valid_correlations) > 0 else 0,
+            'moderate_correlations': np.sum((np.abs(valid_correlations) >= 0.5) & (np.abs(valid_correlations) < 0.7)) if len(valid_correlations) > 0 else 0,
+            'total_samples': len(well_data)
+        }
         
         # Print summary
-        print(f"\n{well} correlation matrix created:")
-        print(f"  Shape: {corr_matrix.shape}")
-        print(f"  Non-null correlations: {corr_matrix.notna().sum().sum()}")
+        print(f"\n{well}:")
+        print(f"  Total samples: {len(well_data):,}")
+        print(f"  Valid correlations: {valid_pairs}/{total_pairs} ({well_correlation_stats[well]['coverage']:.1f}%)")
+        print(f"  Mean |r|: {well_correlation_stats[well]['mean_abs_correlation']:.3f}")
+        print(f"  Strong correlations (|r| ≥ 0.7): {well_correlation_stats[well]['strong_correlations']}")
+        print(f"  Moderate correlations (0.5 ≤ |r| < 0.7): {well_correlation_stats[well]['moderate_correlations']}")
     
-    return well_correlations
+    return well_correlations, well_correlation_stats
 
+def find_all_correlations_by_well_count(well_correlations, min_correlation=0.5, significance_level=0.05):
+    """
+    Find ALL correlations and categorize them by how many wells they appear in.
+    Enhanced version with comprehensive statistics for reporting.
+    """
+    correlation_tracker = {}
+    all_wells = list(well_correlations.keys())
+    total_wells = len(all_wells)
+    
+    # Track all correlation data for comprehensive analysis
+    all_correlation_data = []
+    
+    # Find correlations in each well
+    for well, matrices in well_correlations.items():
+        corr_matrix = matrices['correlation']
+        pvalue_matrix = matrices['pvalue']
+        sample_size_matrix = matrices['sample_size']
+        
+        for log_var in corr_matrix.index:
+            for lab_var in corr_matrix.columns:
+                r = corr_matrix.loc[log_var, lab_var]
+                p = pvalue_matrix.loc[log_var, lab_var]
+                n = sample_size_matrix.loc[log_var, lab_var]
+                
+                # Store all correlations for comprehensive analysis
+                if pd.notna(r) and n > 0:
+                    all_correlation_data.append({
+                        'well': well,
+                        'log_var': log_var,
+                        'lab_var': lab_var,
+                        'correlation': r,
+                        'pvalue': p,
+                        'sample_size': n,
+                        'significant': p < significance_level if pd.notna(p) else False
+                    })
+                
+                # Check if correlation meets minimum threshold
+                if pd.notna(r) and abs(r) >= min_correlation:
+                    pair = (log_var, lab_var)
+                    
+                    if pair not in correlation_tracker:
+                        correlation_tracker[pair] = []
+                    
+                    # Store comprehensive data
+                    correlation_tracker[pair].append({
+                        'well': well,
+                        'correlation': r,
+                        'pvalue': p,
+                        'sample_size': n,
+                        'significant': p < significance_level if pd.notna(p) else False
+                    })
+    
+    # Categorize correlations by number of wells with enhanced statistics
+    correlations_by_well_count = {1: [], 2: [], 3: [], 4: []}
+    
+    for pair, wells_data in correlation_tracker.items():
+        n_wells = len(wells_data)
+        
+        if n_wells in correlations_by_well_count:
+            # Extract values for statistics
+            r_values = [d['correlation'] for d in wells_data]
+            p_values = [d['pvalue'] for d in wells_data if pd.notna(d['pvalue'])]
+            n_samples = [d['sample_size'] for d in wells_data]
+            significant_count = sum(d['significant'] for d in wells_data)
+            
+            # Calculate comprehensive statistics
+            avg_r = np.mean(r_values)
+            avg_abs_r = np.mean([abs(r) for r in r_values])
+            std_r = np.std(r_values)
+            min_r = np.min(r_values)
+            max_r = np.max(r_values)
+            range_r = max_r - min_r
+            
+            # Determine correlation type and consistency
+            if avg_r > 0:
+                correlation_type = "Positive"
+            else:
+                correlation_type = "Negative"
+            
+            all_positive = all(r > 0 for r in r_values)
+            all_negative = all(r < 0 for r in r_values)
+            consistent_direction = all_positive or all_negative
+            
+            # Find missing wells
+            wells_present = [d['well'] for d in wells_data]
+            missing_wells = [well for well in all_wells if well not in wells_present]
+            
+            # Calculate confidence metrics
+            avg_sample_size = np.mean(n_samples)
+            total_samples = np.sum(n_samples)
+            
+            # Calculate correlation strength category
+            if avg_abs_r >= 0.7:
+                strength_category = "Strong"
+            elif avg_abs_r >= 0.5:
+                strength_category = "Moderate"
+            elif avg_abs_r >= 0.3:
+                strength_category = "Weak"
+            else:
+                strength_category = "Very Weak"
+            
+            info = {
+                'n_wells': n_wells,
+                'avg_corr': avg_r,
+                'avg_abs_corr': avg_abs_r,
+                'std_corr': std_r,
+                'min_corr': min_r,
+                'max_corr': max_r,
+                'range_corr': range_r,
+                'correlation_type': correlation_type,
+                'consistent_direction': consistent_direction,
+                'missing_wells': missing_wells,
+                'avg_sample_size': avg_sample_size,
+                'total_samples': total_samples,
+                'min_sample_size': min(n_samples),
+                'max_sample_size': max(n_samples),
+                'significant_count': significant_count,
+                'significant_ratio': significant_count / n_wells,
+                'avg_pvalue': np.mean(p_values) if p_values else np.nan,
+                'strength_category': strength_category,
+                'wells_present': wells_present
+            }
+            
+            # Convert wells_data to simpler format for backward compatibility
+            simple_wells_data = [(d['well'], d['correlation']) for d in wells_data]
+            
+            correlations_by_well_count[n_wells].append((pair, simple_wells_data, info))
+    
+    # Sort each category by average absolute correlation strength
+    for n_wells in correlations_by_well_count:
+        correlations_by_well_count[n_wells].sort(
+            key=lambda x: x[2]['avg_abs_corr'], 
+            reverse=True
+        )
+    
+    # Create comprehensive report data
+    report_data = {
+        'correlations_by_well_count': correlations_by_well_count,
+        'all_correlation_data': pd.DataFrame(all_correlation_data),
+        'summary_stats': {
+            'total_unique_pairs': len(correlation_tracker),
+            'total_correlations': len(all_correlation_data),
+            'pairs_by_well_count': {n: len(corrs) for n, corrs in correlations_by_well_count.items()},
+            'threshold_used': min_correlation,
+            'significance_level': significance_level
+        }
+    }
+    
+    return correlations_by_well_count, report_data
 
-
-def print_categorized_correlation_summary(correlations_by_well_count, top_n=10):
-    """Print a detailed summary of correlations categorized by well count."""
+def print_categorized_correlation_summary(correlations_by_well_count, report_data=None, top_n=10, export_path=None):
+    """
+    Print a detailed summary of correlations categorized by well count.
+    Enhanced version with export capability and comprehensive statistics.
+    """
     print("\n" + "="*100)
-    print("CORRELATION ANALYSIS - CATEGORIZED BY WELL COUNT")
+    print("COMPREHENSIVE CORRELATION ANALYSIS REPORT")
     print("="*100)
     
-    total_correlations = sum(len(corrs) for corrs in correlations_by_well_count.values())
-    print(f"\nTotal correlation pairs found: {total_correlations}")
+    # If report_data is a tuple (backward compatibility), extract the first element
+    if isinstance(correlations_by_well_count, tuple):
+        correlations_by_well_count, report_data = correlations_by_well_count
     
-    print("\nDistribution by well count:")
+    total_correlations = sum(len(corrs) for corrs in correlations_by_well_count.values())
+    
+    # Overall summary
+    print(f"\n📊 OVERALL SUMMARY")
+    print("-"*80)
+    print(f"Total unique correlation pairs found: {total_correlations}")
+    
+    if report_data and 'summary_stats' in report_data:
+        print(f"Minimum correlation threshold: |r| ≥ {report_data['summary_stats']['threshold_used']}")
+        print(f"Significance level: α = {report_data['summary_stats']['significance_level']}")
+    
+    print("\n📈 DISTRIBUTION BY WELL COUNT:")
+    print("-"*80)
+    print(f"{'Wells':<10} {'Count':<10} {'Percentage':<12} {'Avg |r|':<10} {'Strong':<10} {'Moderate':<10}")
+    print("-"*80)
+    
     for n_wells in sorted(correlations_by_well_count.keys(), reverse=True):
-        count = len(correlations_by_well_count[n_wells])
-        print(f"  {n_wells} wells: {count} correlations")
+        correlations = correlations_by_well_count[n_wells]
+        if correlations:
+            count = len(correlations)
+            percentage = (count / total_correlations) * 100
+            
+            # Calculate strength distribution
+            strong_count = sum(1 for _, _, info in correlations if info['avg_abs_corr'] >= 0.7)
+            moderate_count = sum(1 for _, _, info in correlations if 0.5 <= info['avg_abs_corr'] < 0.7)
+            avg_abs_corr = np.mean([info['avg_abs_corr'] for _, _, info in correlations])
+            
+            print(f"{n_wells:<10} {count:<10} {percentage:<11.1f}% {avg_abs_corr:<9.3f} {strong_count:<10} {moderate_count:<10}")
     
     # Detailed analysis for each category
+    all_summary_data = []
+    
     for n_wells in sorted(correlations_by_well_count.keys(), reverse=True):
         correlations = correlations_by_well_count[n_wells]
         
@@ -418,32 +635,60 @@ def print_categorized_correlation_summary(correlations_by_well_count, top_n=10):
             print(f"CORRELATIONS FOUND IN {n_wells} WELLS (Top {min(top_n, len(correlations))})")
             print(f"{'='*80}")
             
-            # Count correlation types
+            # Statistical summary
             positive_count = sum(1 for _, _, info in correlations if info['correlation_type'] == 'Positive')
             negative_count = sum(1 for _, _, info in correlations if info['correlation_type'] == 'Negative')
             consistent_count = sum(1 for _, _, info in correlations if info['consistent_direction'])
+            significant_count = sum(1 for _, _, info in correlations if info['significant_ratio'] > 0.5)
             
-            print(f"\nCorrelation types:")
-            print(f"  Positive: {positive_count}")
-            print(f"  Negative: {negative_count}")
-            print(f"  Consistent direction: {consistent_count}")
+            print(f"\n📊 Category Statistics:")
+            print(f"  Total pairs: {len(correlations)}")
+            print(f"  Positive correlations: {positive_count} ({positive_count/len(correlations)*100:.1f}%)")
+            print(f"  Negative correlations: {negative_count} ({negative_count/len(correlations)*100:.1f}%)")
+            print(f"  Consistent direction: {consistent_count} ({consistent_count/len(correlations)*100:.1f}%)")
+            print(f"  Mostly significant (>50% wells): {significant_count}")
             
-            print(f"\nTop {min(top_n, len(correlations))} correlations:")
-            print("-" * 100)
-            print(f"{'Rank':<5} {'Log Variable':<20} {'Lab Variable':<30} {'Avg r':<10} {'|Avg r|':<10} {'Std':<8} {'Type':<10}")
-            print("-" * 100)
+            # Detailed table
+            print(f"\n{'Rank':<5} {'Log Variable':<20} {'Lab Variable':<30} {'Avg r':<10} {'|Avg r|':<10} {'Std':<8} {'Range':<8} {'n̄':<8} {'Type':<10}")
+            print("-" * 120)
             
             for i, (pair, wells_data, info) in enumerate(correlations[:top_n]):
                 log_var, lab_var = pair
                 log_name = log_var.replace('Log_', '')
                 lab_name = lab_var.replace('Lab_', '')
                 
-                # Use avg_corr for display (actual average, not absolute)
+                # Add to summary data for export
+                summary_row = {
+                    'n_wells': n_wells,
+                    'rank': i + 1,
+                    'log_variable': log_name,
+                    'lab_variable': lab_name,
+                    'avg_correlation': info['avg_corr'],
+                    'avg_abs_correlation': info['avg_abs_corr'],
+                    'std_correlation': info['std_corr'],
+                    'min_correlation': info['min_corr'],
+                    'max_correlation': info['max_corr'],
+                    'range_correlation': info['range_corr'],
+                    'correlation_type': info['correlation_type'],
+                    'consistent_direction': info['consistent_direction'],
+                    'avg_sample_size': info['avg_sample_size'],
+                    'total_samples': info['total_samples'],
+                    'significant_ratio': info['significant_ratio'],
+                    'strength_category': info['strength_category']
+                }
+                
+                # Add individual well correlations
+                for well, r in wells_data:
+                    summary_row[f'{well}_r'] = r
+                
+                all_summary_data.append(summary_row)
+                
                 print(f"{i+1:<5} {log_name:<20} {lab_name:<30} "
                       f"{info['avg_corr']:>9.3f} {info['avg_abs_corr']:>9.3f} "
-                      f"{info['std_corr']:>7.3f} {info['correlation_type']:<10}")
+                      f"{info['std_corr']:>7.3f} {info['range_corr']:>7.3f} "
+                      f"{info['avg_sample_size']:>7.0f} {info['correlation_type']:<10}")
                 
-                # Show individual well values
+                # Show individual well values with additional info
                 well_details = []
                 for well, r in wells_data:
                     well_name = well.split('_')[-1]
@@ -452,56 +697,243 @@ def print_categorized_correlation_summary(correlations_by_well_count, top_n=10):
                 
                 if not info['consistent_direction']:
                     print(f"      ⚠️  Mixed correlation signs across wells")
+                
+                if info['significant_ratio'] < 0.5:
+                    print(f"      ⚠️  Low significance ratio: {info['significant_ratio']:.2f}")
+    
+    # Export comprehensive report if path provided
+    if export_path:
+        summary_df = pd.DataFrame(all_summary_data)
+        summary_df.to_csv(export_path, index=False)
+        print(f"\n✅ Detailed summary exported to: {export_path}")
+    
+    # Print top correlations across all categories
+    print(f"\n{'='*100}")
+    print("TOP CORRELATIONS ACROSS ALL CATEGORIES")
+    print(f"{'='*100}")
+    
+    all_correlations = []
+    for n_wells, corrs in correlations_by_well_count.items():
+        for pair, wells_data, info in corrs:
+            all_correlations.append((pair, wells_data, info, n_wells))
+    
+    # Sort by absolute correlation
+    all_correlations.sort(key=lambda x: x[2]['avg_abs_corr'], reverse=True)
+    
+    print(f"\n🏆 Top 15 Strongest Correlations Overall:")
+    print("-" * 100)
+    for i, (pair, wells_data, info, n_wells) in enumerate(all_correlations[:15]):
+        log_var, lab_var = pair
+        print(f"{i+1:2}. {log_var.replace('Log_', '')} vs {lab_var.replace('Lab_', '')}: "
+              f"|r̄| = {info['avg_abs_corr']:.3f} ({n_wells} wells, {info['strength_category']})")
+    
+    return pd.DataFrame(all_summary_data) if all_summary_data else None
 
 def find_common_correlations(well_correlations, min_correlation=0.5, min_wells=2):
-    """Find correlations that appear in multiple wells (for backward compatibility)."""
-    correlations_by_well_count = find_all_correlations_by_well_count(
+    """
+    Find correlations that appear in multiple wells.
+    Enhanced version that uses the new comprehensive functions.
+    """
+    # Use the enhanced function to get all correlations
+    correlations_by_well_count, report_data = find_all_correlations_by_well_count(
         well_correlations, min_correlation=min_correlation
     )
     
+    # Combine correlations from different well counts based on min_wells
     common_correlations = []
     for n_wells in sorted(correlations_by_well_count.keys(), reverse=True):
         if n_wells >= min_wells:
             common_correlations.extend(correlations_by_well_count[n_wells])
     
+    # Add report data as attribute for access if needed
+    
+    
     return common_correlations
 
-
-def analyze_correlation_consistency(common_correlations, well_correlations):
-    """Analyze how consistent correlations are across wells."""
+def analyze_correlation_consistency(common_correlations, well_correlations, export_path=None):
+    """
+    Analyze how consistent correlations are across wells.
+    Enhanced version with comprehensive statistical analysis and visualization.
+    """
     consistency_data = []
     
-    for item in common_correlations[:20]:  # Top 20 pairs
+    # Handle both old and new formats
+    correlations_to_analyze = common_correlations[:50]  # Analyze top 50 for better coverage
+    
+    for item in correlations_to_analyze:
         if len(item) == 3:
             pair, wells_data, info = item
         else:
             pair, wells_data = item
+            info = {}
             
         log_var, lab_var = pair
         
-        all_well_corrs = []
-        for well, corr_matrix in well_correlations.items():
+        # Collect all correlation data across wells
+        all_well_data = []
+        for well, matrices in well_correlations.items():
+            corr_matrix = matrices['correlation'] if isinstance(matrices, dict) else matrices
+            pvalue_matrix = matrices.get('pvalue', None) if isinstance(matrices, dict) else None
+            sample_size_matrix = matrices.get('sample_size', None) if isinstance(matrices, dict) else None
+            
             if log_var in corr_matrix.index and lab_var in corr_matrix.columns:
                 r = corr_matrix.loc[log_var, lab_var]
                 if not pd.isna(r):
-                    all_well_corrs.append(r)
+                    well_data = {
+                        'well': well,
+                        'correlation': r,
+                        'pvalue': pvalue_matrix.loc[log_var, lab_var] if pvalue_matrix is not None else np.nan,
+                        'sample_size': sample_size_matrix.loc[log_var, lab_var] if sample_size_matrix is not None else np.nan
+                    }
+                    all_well_data.append(well_data)
         
-        if len(all_well_corrs) >= 2:
-            consistency_data.append({
+        if len(all_well_data) >= 2:
+            r_values = [d['correlation'] for d in all_well_data]
+            p_values = [d['pvalue'] for d in all_well_data if not pd.isna(d['pvalue'])]
+            n_samples = [d['sample_size'] for d in all_well_data if not pd.isna(d['sample_size'])]
+            
+            # Calculate comprehensive consistency metrics
+            consistency_metrics = {
                 'Variable_Pair': f'{log_var.replace("Log_", "")} vs {lab_var.replace("Lab_", "")}',
-                'Mean_r': np.mean(all_well_corrs),
-                'Std_r': np.std(all_well_corrs),
-                'Min_r': np.min(all_well_corrs),
-                'Max_r': np.max(all_well_corrs),
-                'Range_r': np.max(all_well_corrs) - np.min(all_well_corrs),
-                'N_Wells': len(all_well_corrs)
-            })
+                'Log_Variable': log_var,
+                'Lab_Variable': lab_var,
+                'N_Wells': len(all_well_data),
+                'Mean_r': np.mean(r_values),
+                'Median_r': np.median(r_values),
+                'Std_r': np.std(r_values),
+                'Min_r': np.min(r_values),
+                'Max_r': np.max(r_values),
+                'Range_r': np.max(r_values) - np.min(r_values),
+                'CV_r': np.std(r_values) / np.mean(np.abs(r_values)) if np.mean(np.abs(r_values)) > 0 else np.nan,
+                'All_Same_Sign': all(r > 0 for r in r_values) or all(r < 0 for r in r_values),
+                'Correlation_Type': 'Positive' if np.mean(r_values) > 0 else 'Negative',
+                'Avg_Sample_Size': np.mean(n_samples) if n_samples else np.nan,
+                'Total_Samples': np.sum(n_samples) if n_samples else np.nan,
+                'Avg_P_Value': np.mean(p_values) if p_values else np.nan,
+                'All_Significant': all(p < 0.05 for p in p_values) if p_values else False
+            }
+            
+            # Add individual well correlations
+            for well_data in all_well_data:
+                well_name = well_data['well']
+                consistency_metrics[f'{well_name}_r'] = well_data['correlation']
+                consistency_metrics[f'{well_name}_p'] = well_data['pvalue']
+                consistency_metrics[f'{well_name}_n'] = well_data['sample_size']
+            
+            # Calculate consistency score (lower is better)
+            consistency_metrics['Consistency_Score'] = consistency_metrics['Std_r'] / abs(consistency_metrics['Mean_r'])
+            
+            consistency_data.append(consistency_metrics)
     
+    # Create DataFrame and sort by consistency
     consistency_df = pd.DataFrame(consistency_data)
     consistency_df = consistency_df.sort_values('Std_r')
     
+    # Add rankings
+    consistency_df['Consistency_Rank'] = range(1, len(consistency_df) + 1)
+    consistency_df['Strength_Rank'] = consistency_df['Mean_r'].abs().rank(ascending=False, method='min').astype(int)
+    
+    # Export if path provided
+    if export_path:
+        consistency_df.to_csv(export_path, index=False)
+        print(f"\n✅ Consistency analysis exported to: {export_path}")
+    
+    # Create visualization
+    if len(consistency_df) > 0:
+        fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+        
+        # 1. Consistency vs Strength scatter
+        ax1 = axes[0, 0]
+        scatter = ax1.scatter(consistency_df['Mean_r'].abs(), 
+                             consistency_df['Std_r'],
+                             c=consistency_df['N_Wells'],
+                             s=consistency_df['Total_Samples']/10,
+                             alpha=0.6,
+                             cmap='viridis')
+        ax1.set_xlabel('Average |r|')
+        ax1.set_ylabel('Standard Deviation')
+        ax1.set_title('Correlation Consistency vs Strength')
+        ax1.grid(True, alpha=0.3)
+        plt.colorbar(scatter, ax=ax1, label='Number of Wells')
+        
+        # 2. Top consistent correlations
+        ax2 = axes[0, 1]
+        top_consistent = consistency_df.head(10)
+        y_pos = np.arange(len(top_consistent))
+        ax2.barh(y_pos, top_consistent['Mean_r'].abs())
+        ax2.set_yticks(y_pos)
+        ax2.set_yticklabels(top_consistent['Variable_Pair'], fontsize=8)
+        ax2.set_xlabel('Average |r|')
+        ax2.set_title('Top 10 Most Consistent Correlations')
+        ax2.grid(True, alpha=0.3, axis='x')
+        
+        # Add error bars
+        ax2.errorbar(top_consistent['Mean_r'].abs(), y_pos, 
+                    xerr=top_consistent['Std_r'], 
+                    fmt='none', color='red', alpha=0.5)
+        
+        # 3. Correlation range plot
+        ax3 = axes[1, 0]
+        top_15 = consistency_df.head(15)
+        for i, row in enumerate(top_15.iterrows()):
+            _, data = row
+            ax3.plot([data['Min_r'], data['Max_r']], [i, i], 'b-', linewidth=2)
+            ax3.plot(data['Mean_r'], i, 'ro', markersize=8)
+        ax3.set_yticks(range(len(top_15)))
+        ax3.set_yticklabels(top_15['Variable_Pair'], fontsize=8)
+        ax3.set_xlabel('Correlation Range')
+        ax3.set_title('Correlation Ranges Across Wells (Top 15)')
+        ax3.grid(True, alpha=0.3, axis='x')
+        ax3.axvline(x=0, color='black', linestyle='--', alpha=0.3)
+        
+        # 4. Consistency score distribution
+        ax4 = axes[1, 1]
+        ax4.hist(consistency_df['Consistency_Score'].dropna(), bins=30, edgecolor='black', alpha=0.7)
+        ax4.set_xlabel('Consistency Score (Std/|Mean|)')
+        ax4.set_ylabel('Frequency')
+        ax4.set_title('Distribution of Consistency Scores')
+        ax4.grid(True, alpha=0.3, axis='y')
+        
+        plt.tight_layout()
+        plt.savefig('imgs/correlation_consistency_analysis.png', dpi=300, bbox_inches='tight')
+        plt.show()
+    
+    # Print enhanced summary
+    print("\n" + "="*80)
+    print("CORRELATION CONSISTENCY ANALYSIS")
+    print("="*80)
+    
+    print(f"\nAnalyzed {len(consistency_df)} correlation pairs")
+    
+    if len(consistency_df) > 0:
+        print("\n🏆 MOST CONSISTENT CORRELATIONS (lowest std):")
+        print("-" * 80)
+        for i, row in consistency_df.head(10).iterrows():
+            print(f"{row['Consistency_Rank']:2}. {row['Variable_Pair']:<50} "
+                  f"σ={row['Std_r']:.3f}, |r̄|={abs(row['Mean_r']):.3f}, "
+                  f"n̄={row['Avg_Sample_Size']:.0f}")
+        
+        print("\n💪 STRONGEST CONSISTENT CORRELATIONS (|r̄| > 0.5, σ < 0.1):")
+        print("-" * 80)
+        strong_consistent = consistency_df[(consistency_df['Mean_r'].abs() > 0.5) & 
+                                         (consistency_df['Std_r'] < 0.1)]
+        if len(strong_consistent) > 0:
+            for _, row in strong_consistent.head(10).iterrows():
+                print(f"{row['Variable_Pair']:<50} "
+                      f"r̄={row['Mean_r']:.3f}, σ={row['Std_r']:.3f}")
+        else:
+            print("No correlations meet these criteria")
+        
+        print("\n⚠️  INCONSISTENT CORRELATIONS (high variation):")
+        print("-" * 80)
+        inconsistent = consistency_df[consistency_df['Std_r'] > 0.2].head(5)
+        for _, row in inconsistent.iterrows():
+            print(f"{row['Variable_Pair']:<50} "
+                  f"σ={row['Std_r']:.3f}, range=[{row['Min_r']:.3f}, {row['Max_r']:.3f}]")
+    
     return consistency_df
 
+# ...existing code...
 
 def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_count, max_plots_per_figure=20):
     """
