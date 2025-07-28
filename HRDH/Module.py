@@ -3467,6 +3467,208 @@ LOG_DESCRIPTIONS = {
     'SLTM': 'Delta Elapsed Time',
     'ZDNC': 'Borehole Size/Mud Weight Corrected Density'
 }
+# def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_correlations):
+#     """
+#     Create heatmaps showing correlations calculated from combined data across all wells.
+#     This differs from the average correlation by pooling all data points together.
+#     """
+    
+#     # Calculate combined correlations (pooling all data)
+#     combined_corr_matrix = pd.DataFrame(index=log_columns, columns=lab_columns, dtype=float)
+#     sample_size_matrix = pd.DataFrame(index=log_columns, columns=lab_columns, dtype=int)
+    
+#     for log_var in log_columns:
+#         for lab_var in lab_columns:
+#             # Get combined data from all wells
+#             combined_data = df_all[[log_var, lab_var]].dropna()
+            
+#             if len(combined_data) >= 3:  # Need at least 3 points
+#                 r, p = pearsonr(combined_data[log_var], combined_data[lab_var])
+#                 combined_corr_matrix.loc[log_var, lab_var] = r
+#                 sample_size_matrix.loc[log_var, lab_var] = len(combined_data)
+    
+#     # Drop empty rows and columns
+#     combined_corr_matrix = combined_corr_matrix.dropna(how='all', axis=0).dropna(how='all', axis=1)
+#     sample_size_matrix = sample_size_matrix.loc[combined_corr_matrix.index, combined_corr_matrix.columns]
+    
+#     # --- Figure 1: Combined Correlations with Clean Annotations ---
+#     fig1, ax1 = plt.subplots(figsize=(18, 14))  # Increased height for legend
+    
+#     # Create custom annotations - more compact format
+#     annot_text = np.empty_like(combined_corr_matrix, dtype=object)
+#     for i in range(len(combined_corr_matrix.index)):
+#         for j in range(len(combined_corr_matrix.columns)):
+#             r_val = combined_corr_matrix.iloc[i, j]
+#             n_val = sample_size_matrix.iloc[i, j]
+#             if pd.notna(r_val) and n_val > 0:
+#                 annot_text[i, j] = f'{r_val:.2f}\n({n_val})'
+#             else:
+#                 annot_text[i, j] = ''
+    
+#     # Create heatmap with improved styling
+#     mask = pd.isna(combined_corr_matrix)
+    
+#     sns.heatmap(
+#         combined_corr_matrix.astype(float),
+#         annot=annot_text,
+#         fmt='',
+#         annot_kws={'size': 9, 'va': 'center', 'ha': 'center', 'weight': 'bold'},
+#         cmap='RdYlGn',
+#         center=0, vmin=-1, vmax=1,
+#         cbar_kws={'label': 'Combined Correlation (r)', 'shrink': 0.8, 'pad': 0.02},
+#         linewidths=0.8,
+#         linecolor='white',
+#         square=True,
+#         mask=mask,
+#         ax=ax1
+#     )
+    
+#     # Improve title and labels
+#     ax1.set_title('Combined Correlations: All Wells Pooled Together\n' + 
+#                   'Pearson correlation coefficient (r) with sample size (n)', 
+#                   fontsize=16, fontweight='bold', pad=20)
+#     ax1.set_xlabel('Laboratory Measurements', fontsize=13, fontweight='bold')
+#     ax1.set_ylabel('Geophysical Log Measurements', fontsize=13, fontweight='bold')
+    
+#     # Clean tick labels
+#     ax1.set_xticklabels([col.replace('Lab_', '') for col in combined_corr_matrix.columns], 
+#                         rotation=45, ha='right', fontsize=10)
+#     ax1.set_yticklabels([row.replace('Log_', '') for row in combined_corr_matrix.index], 
+#                         rotation=0, fontsize=10)
+    
+#     # Add grid for better readability
+#     ax1.set_facecolor('#f8f8f8')
+    
+#     # Add LOG_DESCRIPTIONS legend in top left
+#     log_vars_in_plot = [row.replace('Log_', '') for row in combined_corr_matrix.index]
+#     legend_text = "Log Descriptions:\n" + "-"*50 + "\n"
+#     for log_var in log_vars_in_plot:
+#         if log_var in LOG_DESCRIPTIONS:
+#             legend_text += f"{log_var}: {LOG_DESCRIPTIONS[log_var]}\n"
+    
+#     # Add text box with descriptions in top left corner
+#     plt.figtext(0.02, 0.98, legend_text, fontsize=8, 
+#                 bbox=dict(boxstyle="round,pad=0.5", facecolor="lightyellow", alpha=0.8),
+#                 verticalalignment='top', fontfamily='monospace')
+    
+#     plt.tight_layout()
+#     plt.subplots_adjust(top=0.85)  # Make room for legend at top
+#     plt.savefig('imgs/heatmap_combined_correlations_improved.png', dpi=300, bbox_inches='tight')
+#     plt.show()
+    
+#     # --- Figure 3: Strong correlations only with emphasis ---
+#     fig3, ax3 = plt.subplots(figsize=(18, 14))  # Increased height for legend
+    
+#     # Create mask for weak correlations
+#     strong_threshold = 0.5
+#     mask_weak = np.abs(combined_corr_matrix) < strong_threshold
+    
+#     # Count strong correlations
+#     n_strong = (~mask_weak & ~pd.isna(combined_corr_matrix)).sum().sum()
+#     n_very_strong = (np.abs(combined_corr_matrix) >= 0.7).sum().sum()
+    
+#     # Create annotations only for strong correlations - cleaner format
+#     strong_annot_text = np.empty_like(combined_corr_matrix, dtype=object)
+#     for i in range(len(combined_corr_matrix.index)):
+#         for j in range(len(combined_corr_matrix.columns)):
+#             r_val = combined_corr_matrix.iloc[i, j]
+#             n_val = sample_size_matrix.iloc[i, j]
+#             if pd.notna(r_val) and abs(r_val) >= strong_threshold and n_val > 0:
+#                 strong_annot_text[i, j] = f'{r_val:.2f}\n({n_val})'
+#             else:
+#                 strong_annot_text[i, j] = ''
+    
+#     sns.heatmap(
+#         combined_corr_matrix.astype(float),
+#         annot=strong_annot_text,
+#         fmt='',
+#         annot_kws={'size': 9, 'va': 'center', 'ha': 'center', 'weight': 'bold'},
+#         cmap='RdYlGn',
+#         center=0, vmin=-1, vmax=1,
+#         cbar_kws={'label': 'Strong Correlations (|r| ≥ 0.5)', 'shrink': 0.8, 'pad': 0.02},
+#         linewidths=0.8,
+#         linecolor='white',
+#         square=True,
+#         mask=mask_weak,
+#         ax=ax3
+#     )
+    
+#     # Improve title and labels
+#     ax3.set_title(f'Strong Combined Correlations Only (|r| ≥ 0.5)\n' +
+#                   f'Pearson correlation coefficient (r) with sample size (n)', 
+#                   fontsize=16, fontweight='bold', pad=20)
+#     ax3.set_xlabel('Laboratory Measurements', fontsize=13, fontweight='bold')
+#     ax3.set_ylabel('Geophysical Log Measurements', fontsize=13, fontweight='bold')
+    
+#     # Clean tick labels
+#     ax3.set_xticklabels([col.replace('Lab_', '') for col in combined_corr_matrix.columns], 
+#                         rotation=45, ha='right', fontsize=10)
+#     ax3.set_yticklabels([row.replace('Log_', '') for row in combined_corr_matrix.index], 
+#                         rotation=0, fontsize=10)
+    
+#     # Add grid for better readability
+#     ax3.set_facecolor('#f8f8f8')
+    
+#     # Add LOG_DESCRIPTIONS legend in top left for strong correlations plot too
+#     legend_text = "Log Descriptions:\n" + "-"*50 + "\n"
+#     for log_var in log_vars_in_plot:
+#         if log_var in LOG_DESCRIPTIONS:
+#             legend_text += f"{log_var}: {LOG_DESCRIPTIONS[log_var]}\n"
+    
+#     # Add text box with descriptions in top left corner
+#     plt.figtext(0.02, 0.98, legend_text, fontsize=8, 
+#                 bbox=dict(boxstyle="round,pad=0.5", facecolor="lightyellow", alpha=0.8),
+#                 verticalalignment='top', fontfamily='monospace')
+    
+#     plt.tight_layout()
+#     plt.subplots_adjust(top=0.85)  # Make room for legend at top
+#     plt.savefig('imgs/heatmap_combined_strong_only_improved.png', dpi=300, bbox_inches='tight')
+#     plt.show()
+    
+#     # Print improved summary statistics
+#     print("\n" + "="*80)
+#     print("COMBINED CORRELATION ANALYSIS - IMPROVED SUMMARY")
+#     print("="*80)
+    
+#     print("\n📊 CORRELATION STRENGTH DISTRIBUTION:")
+#     print("-" * 60)
+#     total_valid = (~pd.isna(combined_corr_matrix)).sum().sum()
+#     for threshold, label in [(0.7, "Very Strong"), (0.5, "Strong"), (0.3, "Moderate")]:
+#         count = (np.abs(combined_corr_matrix) >= threshold).sum().sum()
+#         pct = (count / total_valid * 100) if total_valid > 0 else 0
+#         print(f"{label} (|r| ≥ {threshold}): {count} ({pct:.1f}%)")
+    
+#     print("\n📈 SAMPLE SIZE DISTRIBUTION:")
+#     print("-" * 60)
+#     valid_sizes = sample_size_matrix[sample_size_matrix > 0].values.flatten()
+#     print(f"Range: {valid_sizes.min()} - {valid_sizes.max()} samples")
+#     print(f"Mean: {valid_sizes.mean():.0f} samples")
+#     print(f"Median: {np.median(valid_sizes):.0f} samples")
+    
+#     # Find correlations with highest confidence (large n and strong r)
+#     confidence_scores = np.abs(combined_corr_matrix) * np.sqrt(sample_size_matrix)
+#     top_confidence_idx = np.unravel_index(np.nanargmax(confidence_scores), confidence_scores.shape)
+    
+#     print("\n🎯 HIGHEST CONFIDENCE CORRELATION:")
+#     print("-" * 60)
+#     log_var = combined_corr_matrix.index[top_confidence_idx[0]]
+#     lab_var = combined_corr_matrix.columns[top_confidence_idx[1]]
+#     print(f"{log_var.replace('Log_', '')} vs {lab_var.replace('Lab_', '')}")
+#     print(f"r = {combined_corr_matrix.iloc[top_confidence_idx]:.3f}, n = {sample_size_matrix.iloc[top_confidence_idx]}")
+    
+#     # Print log descriptions in summary
+#     print("\n📖 LOG MEASUREMENT DESCRIPTIONS:")
+#     print("-" * 60)
+#     for log_var in log_vars_in_plot:
+#         if log_var in LOG_DESCRIPTIONS:
+#             print(f"{log_var}: {LOG_DESCRIPTIONS[log_var]}")
+    
+#     return combined_corr_matrix, sample_size_matrix
+
+# new
+
+
+# ...existing code...
 def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_correlations):
     """
     Create heatmaps showing correlations calculated from combined data across all wells.
@@ -3477,31 +3679,57 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
     combined_corr_matrix = pd.DataFrame(index=log_columns, columns=lab_columns, dtype=float)
     sample_size_matrix = pd.DataFrame(index=log_columns, columns=lab_columns, dtype=int)
     
+    # Also track which wells have data for each pair
+    wells_with_data_matrix = pd.DataFrame(index=log_columns, columns=lab_columns, dtype=object)
+    
     for log_var in log_columns:
         for lab_var in lab_columns:
-            # Get combined data from all wells
-            combined_data = df_all[[log_var, lab_var]].dropna()
+            # Get combined data
+            combined_data = df_all[[log_var, lab_var, 'Well']].dropna()
             
-            if len(combined_data) >= 3:  # Need at least 3 points
+            if len(combined_data) > 5:
                 r, p = pearsonr(combined_data[log_var], combined_data[lab_var])
                 combined_corr_matrix.loc[log_var, lab_var] = r
                 sample_size_matrix.loc[log_var, lab_var] = len(combined_data)
+                
+                # Get list of wells that have data for this pair
+                wells_present = sorted(combined_data['Well'].unique())
+                wells_with_data_matrix.loc[log_var, lab_var] = wells_present
     
     # Drop empty rows and columns
     combined_corr_matrix = combined_corr_matrix.dropna(how='all', axis=0).dropna(how='all', axis=1)
     sample_size_matrix = sample_size_matrix.loc[combined_corr_matrix.index, combined_corr_matrix.columns]
+    wells_with_data_matrix = wells_with_data_matrix.loc[combined_corr_matrix.index, combined_corr_matrix.columns]
     
     # --- Figure 1: Combined Correlations with Clean Annotations ---
     fig1, ax1 = plt.subplots(figsize=(18, 14))  # Increased height for legend
     
-    # Create custom annotations - more compact format
+    # Create custom annotations - more compact format with wells info
     annot_text = np.empty_like(combined_corr_matrix, dtype=object)
     for i in range(len(combined_corr_matrix.index)):
         for j in range(len(combined_corr_matrix.columns)):
-            r_val = combined_corr_matrix.iloc[i, j]
-            n_val = sample_size_matrix.iloc[i, j]
-            if pd.notna(r_val) and n_val > 0:
-                annot_text[i, j] = f'{r_val:.2f}\n({n_val})'
+            r = combined_corr_matrix.iloc[i, j]
+            n = sample_size_matrix.iloc[i, j]
+            wells_list = wells_with_data_matrix.iloc[i, j]
+            
+            if pd.notna(r) and n > 0:
+                # Format well names - just the numbers
+                well_numbers = [w.split('_')[1] for w in wells_list]
+                n_wells = len(wells_list)
+                
+                # Create multi-line annotation based on number of wells
+                if n_wells == 4:
+                    # Don't mention well names when all 4 wells are present
+                    annot_text[i, j] = f'{r:.2f}\nn={n}\n(all wells)'
+                elif n_wells == 3:
+                    # For 3 wells, use abbreviated format
+                    annot_text[i, j] = f'{r:.2f}\nn={n}\n(3 wells)'
+                elif n_wells == 2:
+                    # For 2 wells, show the well numbers
+                    annot_text[i, j] = f'{r:.2f}\nn={n}\n({",".join(well_numbers)})'
+                else:
+                    # For 1 well
+                    annot_text[i, j] = f'{r:.2f}\nn={n}\n({well_numbers[0]})'
             else:
                 annot_text[i, j] = ''
     
@@ -3512,7 +3740,7 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
         combined_corr_matrix.astype(float),
         annot=annot_text,
         fmt='',
-        annot_kws={'size': 9, 'va': 'center', 'ha': 'center', 'weight': 'bold'},
+        annot_kws={'size': 8, 'va': 'center', 'ha': 'center', 'weight': 'bold'},
         cmap='RdYlGn',
         center=0, vmin=-1, vmax=1,
         cbar_kws={'label': 'Combined Correlation (r)', 'shrink': 0.8, 'pad': 0.02},
@@ -3544,7 +3772,7 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
     legend_text = "Log Descriptions:\n" + "-"*50 + "\n"
     for log_var in log_vars_in_plot:
         if log_var in LOG_DESCRIPTIONS:
-            legend_text += f"{log_var}: {LOG_DESCRIPTIONS[log_var]}\n"
+            legend_text += f"{log_var:<6}: {LOG_DESCRIPTIONS[log_var]}\n"
     
     # Add text box with descriptions in top left corner
     plt.figtext(0.02, 0.98, legend_text, fontsize=8, 
@@ -3567,14 +3795,32 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
     n_strong = (~mask_weak & ~pd.isna(combined_corr_matrix)).sum().sum()
     n_very_strong = (np.abs(combined_corr_matrix) >= 0.7).sum().sum()
     
-    # Create annotations only for strong correlations - cleaner format
+    # Create annotations only for strong correlations - cleaner format with wells info
     strong_annot_text = np.empty_like(combined_corr_matrix, dtype=object)
     for i in range(len(combined_corr_matrix.index)):
         for j in range(len(combined_corr_matrix.columns)):
-            r_val = combined_corr_matrix.iloc[i, j]
-            n_val = sample_size_matrix.iloc[i, j]
-            if pd.notna(r_val) and abs(r_val) >= strong_threshold and n_val > 0:
-                strong_annot_text[i, j] = f'{r_val:.2f}\n({n_val})'
+            r = combined_corr_matrix.iloc[i, j]
+            n = sample_size_matrix.iloc[i, j]
+            wells_list = wells_with_data_matrix.iloc[i, j]
+            
+            if pd.notna(r) and abs(r) >= strong_threshold and n > 0:
+                # Format well names - just the numbers
+                well_numbers = [w.split('_')[1] for w in wells_list]
+                n_wells = len(wells_list)
+                
+                # Create multi-line annotation based on number of wells
+                if n_wells == 4:
+                    # Don't mention well names when all 4 wells are present
+                    strong_annot_text[i, j] = f'{r:.2f}\nn={n}\n(all wells)'
+                elif n_wells == 3:
+                    # For 3 wells, use abbreviated format
+                    strong_annot_text[i, j] = f'{r:.2f}\nn={n}\n(3 wells)'
+                elif n_wells == 2:
+                    # For 2 wells, show the well numbers
+                    strong_annot_text[i, j] = f'{r:.2f}\nn={n}\n({",".join(well_numbers)})'
+                else:
+                    # For 1 well
+                    strong_annot_text[i, j] = f'{r:.2f}\nn={n}\n({well_numbers[0]})'
             else:
                 strong_annot_text[i, j] = ''
     
@@ -3582,7 +3828,7 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
         combined_corr_matrix.astype(float),
         annot=strong_annot_text,
         fmt='',
-        annot_kws={'size': 9, 'va': 'center', 'ha': 'center', 'weight': 'bold'},
+        annot_kws={'size': 8, 'va': 'center', 'ha': 'center', 'weight': 'bold'},
         cmap='RdYlGn',
         center=0, vmin=-1, vmax=1,
         cbar_kws={'label': 'Strong Correlations (|r| ≥ 0.5)', 'shrink': 0.8, 'pad': 0.02},
@@ -3613,7 +3859,7 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
     legend_text = "Log Descriptions:\n" + "-"*50 + "\n"
     for log_var in log_vars_in_plot:
         if log_var in LOG_DESCRIPTIONS:
-            legend_text += f"{log_var}: {LOG_DESCRIPTIONS[log_var]}\n"
+            legend_text += f"{log_var:<6}: {LOG_DESCRIPTIONS[log_var]}\n"
     
     # Add text box with descriptions in top left corner
     plt.figtext(0.02, 0.98, legend_text, fontsize=8, 
@@ -3635,8 +3881,8 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
     total_valid = (~pd.isna(combined_corr_matrix)).sum().sum()
     for threshold, label in [(0.7, "Very Strong"), (0.5, "Strong"), (0.3, "Moderate")]:
         count = (np.abs(combined_corr_matrix) >= threshold).sum().sum()
-        pct = (count / total_valid * 100) if total_valid > 0 else 0
-        print(f"{label} (|r| ≥ {threshold}): {count} ({pct:.1f}%)")
+        percentage = (count / total_valid) * 100 if total_valid > 0 else 0
+        print(f"{label} (|r| ≥ {threshold}): {count} ({percentage:.1f}%)")
     
     print("\n📈 SAMPLE SIZE DISTRIBUTION:")
     print("-" * 60)
@@ -3661,108 +3907,6 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
     print("-" * 60)
     for log_var in log_vars_in_plot:
         if log_var in LOG_DESCRIPTIONS:
-            print(f"{log_var}: {LOG_DESCRIPTIONS[log_var]}")
+            print(f"{log_var:<6}: {LOG_DESCRIPTIONS[log_var]}")
     
-    return combined_corr_matrix, sample_size_matrix
-
-def create_improved_correlation_heatmaps(well_correlations, correlations_by_well_count, df_all, lab_columns, log_columns):
-    """
-    Create improved correlation heatmaps with better spacing and layout.
-    Creates separate figures for each visualization for better clarity.
-    """
-    
-    # Calculate average correlations and statistics
-    avg_corr_matrix = pd.DataFrame(index=log_columns, columns=lab_columns, dtype=float)
-    count_matrix = pd.DataFrame(index=log_columns, columns=lab_columns, dtype=int)
-    std_matrix = pd.DataFrame(index=log_columns, columns=lab_columns, dtype=float)
-    wells_present_matrix = pd.DataFrame(index=log_columns, columns=lab_columns, dtype=object)
-    
-    # Calculate statistics for each variable pair
-    for log_var in log_columns:
-        for lab_var in lab_columns:
-            well_corrs = []
-            wells_with_data = []
-            
-            for well, corr_matrix in well_correlations.items():
-                if log_var in corr_matrix.index and lab_var in corr_matrix.columns:
-                    r = corr_matrix.loc[log_var, lab_var]
-                    if not pd.isna(r):
-                        well_corrs.append(r)
-                        wells_with_data.append(well.replace('HRDH_', ''))
-            
-            if well_corrs:
-                avg_corr_matrix.loc[log_var, lab_var] = np.mean(well_corrs)
-                count_matrix.loc[log_var, lab_var] = len(well_corrs)
-                std_matrix.loc[log_var, lab_var] = np.std(well_corrs) if len(well_corrs) > 1 else 0
-                wells_present_matrix.loc[log_var, lab_var] = ', '.join(wells_with_data)
-    
-    # Drop empty rows and columns
-    avg_corr_matrix = avg_corr_matrix.dropna(how='all', axis=0).dropna(how='all', axis=1)
-    std_matrix = std_matrix.dropna(how='all', axis=0).dropna(how='all', axis=1)
-    count_matrix = count_matrix.dropna(how='all', axis=0).dropna(how='all', axis=1)
-    
-    # Start directly with Figure 2 - no Figure 1 needed
-    # --- Figure 2: Strong Correlations and Consistency Side by Side ---
-    fig2, (ax2, ax3) = plt.subplots(1, 2, figsize=(20, 10))
-    
-    # Plot 2a: Strong Correlations Only
-    strong_mask = np.abs(avg_corr_matrix) < 0.5
-    strong_corr = avg_corr_matrix.copy()
-    
-    n_strong_positive = ((strong_corr >= 0.5) & (~pd.isna(strong_corr))).sum().sum()
-    n_strong_negative = ((strong_corr <= -0.5) & (~pd.isna(strong_corr))).sum().sum()
-    
-    sns.heatmap(strong_corr.astype(float), 
-                mask=strong_mask,
-                annot=True, fmt='.2f', 
-                annot_kws={'size': 9},
-                cmap='RdYlGn', 
-                center=0, vmin=-1, vmax=1,
-                cbar_kws={'label': 'Correlation (r)', 'shrink': 0.8, 'pad': 0.02},
-                linewidths=0.5,
-                linecolor='gray',
-                square=True,
-                ax=ax2)
-    
-    ax2.set_title(f'Strong Correlations Only (|r| ≥ 0.5)\n{n_strong_positive} positive, {n_strong_negative} negative', 
-                  fontsize=14, fontweight='bold', pad=15)
-    ax2.set_xlabel('Laboratory Measurements', fontsize=12, labelpad=10)
-    ax2.set_ylabel('Log Measurements', fontsize=12, labelpad=10)
-    ax2.set_xticklabels([col.replace('Lab_', '') for col in strong_corr.columns], 
-                        rotation=45, ha='right', fontsize=9)
-    ax2.set_yticklabels([row.replace('Log_', '') for row in strong_corr.index], 
-                        rotation=0, fontsize=9)
-    
-    # Plot 2b: Correlation Consistency
-    consistency_matrix = pd.DataFrame(index=std_matrix.index, columns=std_matrix.columns, dtype=float)
-    
-    for log_var in std_matrix.index:
-        for lab_var in std_matrix.columns:
-            if count_matrix.loc[log_var, lab_var] >= 2:
-                normalized_std = std_matrix.loc[log_var, lab_var] / 1.414
-                consistency_matrix.loc[log_var, lab_var] = 1 - normalized_std
-    
-    sns.heatmap(consistency_matrix.astype(float), 
-                annot=True, fmt='.2f', 
-                annot_kws={'size': 9},
-                cmap='RdYlGn', 
-                vmin=0, vmax=1,
-                cbar_kws={'label': 'Consistency Score', 'shrink': 0.8, 'pad': 0.02},
-                linewidths=0.5,
-                linecolor='gray',
-                square=True,
-                ax=ax3)
-    
-    ax3.set_title('Correlation Consistency Across Wells\n(1 = perfectly consistent, 0 = highly variable)', 
-                  fontsize=14, fontweight='bold', pad=15)
-    ax3.set_xlabel('Laboratory Measurements', fontsize=12, labelpad=10)
-    ax3.set_ylabel('Log Measurements', fontsize=12, labelpad=10)
-    ax3.set_xticklabels([col.replace('Lab_', '') for col in consistency_matrix.columns], 
-                        rotation=45, ha='right', fontsize=9)
-    ax3.set_yticklabels([row.replace('Log_', '') for row in consistency_matrix.index], 
-                        rotation=0, fontsize=9)
-    
-    plt.tight_layout(pad=3.0)
-    plt.savefig('imgs/heatmap_2_strong_and_consistency.png', dpi=300, bbox_inches='tight', pad_inches=0.3)
-    plt.show()
-
+    return combined_corr_matrix,
