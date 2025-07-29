@@ -370,6 +370,37 @@ def calculate_correlations_by_well(df_all, lab_columns, log_columns, min_samples
     print("CALCULATING CORRELATIONS BY WELL")
     print("="*80)
     
+    # First, let's diagnose data availability
+    print("\nData Availability Check:")
+    print("-" * 60)
+    
+    for well in wells:
+        well_data = df_all[df_all['Well'] == well]
+        print(f"\n{well}:")
+        print(f"  Total samples: {len(well_data)}")
+        
+        # Check actual data availability for log and lab columns
+        log_coverage = well_data[log_columns].notna().sum()
+        lab_coverage = well_data[lab_columns].notna().sum()
+        
+        print(f"  Log data coverage: min={log_coverage.min()}, max={log_coverage.max()}, mean={log_coverage.mean():.1f}")
+        print(f"  Lab data coverage: min={lab_coverage.min()}, max={lab_coverage.max()}, mean={lab_coverage.mean():.1f}")
+        
+        # Check how many valid pairs we can actually form
+        valid_pair_count = 0
+        for log_col in log_columns[:3]:  # Sample check
+            for lab_col in lab_columns[:3]:
+                valid_samples = well_data[[log_col, lab_col]].dropna()
+                if len(valid_samples) >= min_samples:
+                    valid_pair_count += 1
+        
+        estimated_valid_pairs = (valid_pair_count / 9) * (len(log_columns) * len(lab_columns))
+        print(f"  Estimated valid pairs: {estimated_valid_pairs:.0f} ({estimated_valid_pairs/(len(log_columns)*len(lab_columns))*100:.1f}%)")
+    
+    print("\n" + "="*80)
+    print("CORRELATION CALCULATIONS")
+    print("="*80)
+    
     for well in wells:
         well_data = df_all[df_all['Well'] == well]
         
@@ -387,14 +418,21 @@ def calculate_correlations_by_well(df_all, lab_columns, log_columns, min_samples
                 valid_data = well_data[[log_col, lab_col]].dropna()
                 n_samples = len(valid_data)
                 
-                if n_samples >= min_samples:  # Configurable minimum sample threshold
-                    r, p = pearsonr(valid_data[log_col], valid_data[lab_col])
-                    corr_matrix.loc[log_col, lab_col] = r
-                    pvalue_matrix.loc[log_col, lab_col] = p
-                    sample_size_matrix.loc[log_col, lab_col] = n_samples
-                    valid_pairs += 1
+                sample_size_matrix.loc[log_col, lab_col] = n_samples
+                
+                if n_samples >= min_samples:
+                    try:
+                        r, p = stats.pearsonr(valid_data[log_col], valid_data[lab_col])
+                        corr_matrix.loc[log_col, lab_col] = r
+                        pvalue_matrix.loc[log_col, lab_col] = p
+                        valid_pairs += 1
+                    except Exception as e:
+                        # Handle any calculation errors
+                        corr_matrix.loc[log_col, lab_col] = np.nan
+                        pvalue_matrix.loc[log_col, lab_col] = np.nan
                 else:
-                    sample_size_matrix.loc[log_col, lab_col] = n_samples
+                    corr_matrix.loc[log_col, lab_col] = np.nan
+                    pvalue_matrix.loc[log_col, lab_col] = np.nan
         
         well_correlations[well] = {
             'correlation': corr_matrix,
@@ -415,18 +453,55 @@ def calculate_correlations_by_well(df_all, lab_columns, log_columns, min_samples
             'min_correlation': np.min(valid_correlations) if len(valid_correlations) > 0 else np.nan,
             'strong_correlations': np.sum(np.abs(valid_correlations) >= 0.7) if len(valid_correlations) > 0 else 0,
             'moderate_correlations': np.sum((np.abs(valid_correlations) >= 0.5) & (np.abs(valid_correlations) < 0.7)) if len(valid_correlations) > 0 else 0,
-            'total_samples': len(well_data)
+            'total_samples': len(well_data),
+            'valid_correlations_count': len(valid_correlations)
         }
         
         # Print summary
         print(f"\n{well}:")
         print(f"  Total samples: {len(well_data):,}")
         print(f"  Valid correlations: {valid_pairs}/{total_pairs} ({well_correlation_stats[well]['coverage']:.1f}%)")
-        print(f"  Mean |r|: {well_correlation_stats[well]['mean_abs_correlation']:.3f}")
-        print(f"  Strong correlations (|r| ≥ 0.7): {well_correlation_stats[well]['strong_correlations']}")
-        print(f"  Moderate correlations (0.5 ≤ |r| < 0.7): {well_correlation_stats[well]['moderate_correlations']}")
+        if len(valid_correlations) > 0:
+            print(f"  Mean |r|: {well_correlation_stats[well]['mean_abs_correlation']:.3f}")
+            print(f"  Strong correlations (|r| ≥ 0.7): {well_correlation_stats[well]['strong_correlations']}")
+            print(f"  Moderate correlations (0.5 ≤ |r| < 0.7): {well_correlation_stats[well]['moderate_correlations']}")
+        else:
+            print(f"  ⚠️ No valid correlations found (insufficient overlapping data)")
+    
+    # Add a warning summary
+    print("\n" + "="*80)
+    print("DATA QUALITY WARNINGS")
+    print("="*80)
+    
+    wells_with_issues = [well for well, stats in well_correlation_stats.items() 
+                        if stats['coverage'] < 10]
+    
+    if wells_with_issues:
+        print(f"\n⚠️ Wells with very low coverage (<10%):")
+        for well in wells_with_issues:
+            print(f"  - {well}: {well_correlation_stats[well]['coverage']:.1f}% coverage, "
+                  f"{well_correlation_stats[well]['valid_pairs']} valid pairs")
+            
+            # Diagnose why
+            well_data = df_all[df_all['Well'] == well]
+            sample_matrix = well_correlations[well]['sample_size']
+            
+            # Find which has more data - logs or labs
+            log_data_counts = well_data[log_columns].notna().sum()
+            lab_data_counts = well_data[lab_columns].notna().sum()
+            
+            if log_data_counts.mean() < 5:
+                print(f"    → Issue: Very limited log data (avg {log_data_counts.mean():.1f} samples per log)")
+            if lab_data_counts.mean() < 5:
+                print(f"    → Issue: Very limited lab data (avg {lab_data_counts.mean():.1f} samples per lab)")
+            
+            # Check if it's a depth matching issue
+            if len(well_data) < min_samples:
+                print(f"    → Issue: Total samples ({len(well_data)}) below minimum required ({min_samples})")
     
     return well_correlations, well_correlation_stats
+
+
 
 def find_all_correlations_by_well_count(well_correlations, min_correlation=0.5, significance_level=0.05):
     """
@@ -987,7 +1062,7 @@ def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_
     # Define colors for each well
     well_colors = {
         'HRDH_697': '#1f77b4',
-        'HRDH_1119': '#d62728' , 
+        'HRDH_1119': '#d62728', 
         'HRDH_1804': '#2ca02c',
         'HRDH_1867': '#ff7f0e'
     }
@@ -1000,40 +1075,64 @@ def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_
     
     # Function to sanitize filename
     def sanitize_filename(name):
-        """Replace invalid filename characters with underscores."""
-        invalid_chars = ['/', '\\', ':', '*', '?', '"', '<', '>', '|', ' ']
-        sanitized = name
-        for char in invalid_chars:
-            sanitized = sanitized.replace(char, '_')
-        return sanitized
+        return name.replace('/', '_').replace('\\', '_').replace(':', '_')
     
     # Function to calculate combined correlation
     def calculate_combined_correlation(df_all, log_var, lab_var):
-        """Calculate correlation from all wells' data combined."""
+        """Calculate correlation using ALL data points pooled together"""
         valid_data = df_all[[log_var, lab_var]].dropna()
-        if len(valid_data) < 3:
-            return np.nan
-        r, _ = stats.pearsonr(valid_data[log_var], valid_data[lab_var])
-        return r
+        if len(valid_data) >= 10:  # Minimum samples for correlation
+            r, p = pearsonr(valid_data[log_var], valid_data[lab_var])
+            return r
+        return np.nan
     
-    # Collect correlations from 2+ wells only
-    all_correlations_with_combined = []
+    # NEW: Get all possible log-lab combinations to match heatmap
+    log_columns = [col for col in df_all.columns if col.startswith('Log_') and 
+                   col not in ['Log_Depth', 'Log_FRAMENO']]
+    lab_columns = [col for col in df_all.columns if col.startswith('Lab_') and 
+                   col not in ['Lab_Depth', 'Lab_Sample_ID']]
     
-    for n_wells in sorted(correlations_by_well_count.keys(), reverse=True):
-        if n_wells >= 2:  # Only include correlations in 2+ wells
-            for pair, wells_data, info in correlations_by_well_count[n_wells]:
-                log_var, lab_var = pair
-                # Calculate the actual combined correlation
+    # Calculate combined correlations for ALL pairs (like the heatmap does)
+    all_combined_correlations = []
+    min_samples_per_well = 10
+    
+    for log_var in log_columns:
+        for lab_var in lab_columns:
+            # Check which wells have sufficient data
+            wells_with_data = []
+            for well in df_all['Well'].unique():
+                well_data = df_all[df_all['Well'] == well]
+                valid_data = well_data[[log_var, lab_var]].dropna()
+                if len(valid_data) >= min_samples_per_well:
+                    r, _ = pearsonr(valid_data[log_var], valid_data[lab_var])
+                    wells_with_data.append((well, r))
+            
+            # Only proceed if we have data from 2+ wells
+            if len(wells_with_data) >= 2:
+                # Calculate combined correlation
                 combined_r = calculate_combined_correlation(df_all, log_var, lab_var)
-                if not np.isnan(combined_r):
-                    all_correlations_with_combined.append((pair, wells_data, info, combined_r))
+                
+                # Only include if meets threshold
+                if not np.isnan(combined_r) and abs(combined_r) >= min_correlation:
+                    # Create info dictionary
+                    correlations = [r for _, r in wells_with_data]
+                    info = {
+                        'avg_corr': np.mean(correlations),
+                        'avg_abs_corr': np.mean([abs(r) for r in correlations]),
+                        'std_corr': np.std(correlations),
+                        'n_wells': len(wells_with_data),
+                        'correlation_type': 'Positive' if combined_r > 0 else 'Negative',
+                        'consistent_direction': all(r > 0 for _, r in wells_with_data) or all(r < 0 for _, r in wells_with_data)
+                    }
+                    
+                    all_combined_correlations.append(((log_var, lab_var), wells_with_data, info, combined_r))
     
     # Separate based on combined correlation sign
     positive_correlations = [(pair, wells_data, info, combined_r) 
-                            for pair, wells_data, info, combined_r in all_correlations_with_combined 
+                            for pair, wells_data, info, combined_r in all_combined_correlations 
                             if combined_r > 0]
     negative_correlations = [(pair, wells_data, info, combined_r) 
-                            for pair, wells_data, info, combined_r in all_correlations_with_combined 
+                            for pair, wells_data, info, combined_r in all_combined_correlations 
                             if combined_r < 0]
     
     # Sort by absolute combined correlation value (strongest first)
@@ -1041,12 +1140,13 @@ def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_
     negative_correlations.sort(key=lambda x: abs(x[3]), reverse=True)
     
     # Remove combined_r from tuples for compatibility with rest of code
-    all_positive_corrs = [(pair, wells_data, info) for pair, wells_data, info, _ in positive_correlations]
-    all_negative_corrs = [(pair, wells_data, info) for pair, wells_data, info, _ in negative_correlations]
+    all_positive_corrs = [(pair, wells_data, info) for pair, wells_data, info, combined_r in positive_correlations]
+    all_negative_corrs = [(pair, wells_data, info) for pair, wells_data, info, combined_r in negative_correlations]
     
-    print(f"\nCorrelation Classification Summary (2+ wells):")
-    print(f"Positive correlations (combined r > {min_correlation}): {len(all_positive_corrs)}")
-    print(f"Negative correlations (combined r < {min_correlation}): {len(all_negative_corrs)}")
+    print(f"\nCorrelation Classification Summary (2+ wells, |r| ≥ {min_correlation}):")
+    print(f"Positive correlations: {len(all_positive_corrs)}")
+    print(f"Negative correlations: {len(all_negative_corrs)}")
+    print(f"Total correlations meeting threshold: {len(all_positive_corrs) + len(all_negative_corrs)}")
     
     # Check for mixed-sign correlations
     mixed_count = 0
@@ -1095,14 +1195,11 @@ def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_
                 
                 # Individual well regression line
                 if len(x_data) > 1:
-                    z_well = np.polyfit(x_data, y_data, 1)
-                    p_well = np.poly1d(z_well)
-                    x_line_well = np.linspace(x_data.min(), x_data.max(), 50)
-                    ax.plot(x_line_well, p_well(x_line_well), 
-                           color=well_colors[well], 
-                           linestyle='--', 
-                           alpha=0.5, 
-                           linewidth=1.5)
+                    z = np.polyfit(x_data, y_data, 1)
+                    p = np.poly1d(z)
+                    x_line = np.linspace(x_data.min(), x_data.max(), 100)
+                    ax.plot(x_line, p(x_line), color=well_colors[well], 
+                           linestyle='--', alpha=0.5, linewidth=1.5)
                 
                 all_x.extend(x_data)
                 all_y.extend(y_data)
@@ -1224,33 +1321,27 @@ def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_
                 # Plot data for each well with individual regression lines
                 for well, r in wells_data:
                     well_data = df_all[df_all['Well'] == well]
-                    
-                    # Get valid data points
                     mask = (~well_data[log_var].isna()) & (~well_data[lab_var].isna())
                     x_data = well_data.loc[mask, log_var].values
                     y_data = well_data.loc[mask, lab_var].values
                     
                     if len(x_data) > 0:
-                        # Shorter well names in legend
                         well_short = well.replace('HRDH_', '')
                         ax.scatter(x_data, y_data, 
                                  color=well_colors[well], 
                                  alpha=0.6, 
                                  s=30,
-                                 label=f'{well_short} (r={r:.2f}, n={len(x_data)})',
+                                 label=f'{well_short} (r={r:.2f})',
                                  edgecolors='darkgreen',
                                  linewidth=0.5)
                         
-                        # Add individual well regression line (thinner, dashed)
+                        # Individual well regression line
                         if len(x_data) > 1:
-                            z_well = np.polyfit(x_data, y_data, 1)
-                            p_well = np.poly1d(z_well)
-                            x_line_well = np.linspace(x_data.min(), x_data.max(), 50)
-                            ax.plot(x_line_well, p_well(x_line_well), 
-                                   color=well_colors[well], 
-                                   linestyle='--', 
-                                   alpha=0.5, 
-                                   linewidth=1)
+                            z = np.polyfit(x_data, y_data, 1)
+                            p = np.poly1d(z)
+                            x_line = np.linspace(x_data.min(), x_data.max(), 100)
+                            ax.plot(x_line, p(x_line), color=well_colors[well], 
+                                   linestyle='--', alpha=0.5, linewidth=1)
                         
                         all_x.extend(x_data)
                         all_y.extend(y_data)
@@ -1259,48 +1350,15 @@ def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_
                 if len(all_x) > 3:
                     all_x = np.array(all_x)
                     all_y = np.array(all_y)
+                    combined_r = positive_correlations[idx][3]  # Use pre-calculated value
                     
-                    # Use the pre-calculated combined_r
-                    combined_p = stats.pearsonr(all_x, all_y)[1]
-                    
-                    # Calculate R-squared
+                    # Combined regression line
                     z = np.polyfit(all_x, all_y, 1)
                     p = np.poly1d(z)
-                    y_pred = p(all_x)
-                    ss_res = np.sum((all_y - y_pred)**2)
-                    ss_tot = np.sum((all_y - np.mean(all_y))**2)
-                    r_squared = 1 - (ss_res / ss_tot)
-                    
-                    # Calculate 95% confidence interval for the regression line
-                    n = len(all_x)
-                    t_val = stats.t.ppf(0.975, n-2)  # 95% CI
-                    s_yx = np.sqrt(ss_res / (n-2))  # Standard error of estimate
-                    
                     x_line = np.linspace(all_x.min(), all_x.max(), 100)
-                    y_line = p(x_line)
-                    
-                    # Standard error for each predicted value
-                    x_mean = np.mean(all_x)
-                    se_line = s_yx * np.sqrt(1/n + (x_line - x_mean)**2 / np.sum((all_x - x_mean)**2))
-                    ci_upper = y_line + t_val * se_line
-                    ci_lower = y_line - t_val * se_line
-                    
-                    # Plot confidence interval
-                    ax.fill_between(x_line, ci_lower, ci_upper, 
-                                   color='darkgreen', alpha=0.1, 
-                                   label='95% CI')
-                    
-                    # Plot combined regression line
-                    ax.plot(x_line, y_line, color='darkgreen', 
+                    ax.plot(x_line, p(x_line), color='darkgreen', 
                            linestyle='-', alpha=0.8, linewidth=2.5,
-                           label=f'Combined: r={combined_r:.2f}, R²={r_squared:.2f}')
-                    
-                    # Add statistics box in corner
-                    stats_text = f'p={combined_p:.2e}\nn={len(all_x)}'
-                    ax.text(0.98, 0.02, stats_text, transform=ax.transAxes,
-                           bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8),
-                           verticalalignment='bottom', horizontalalignment='right',
-                           fontsize=8, color='darkgreen')
+                           label=f'Combined (r={combined_r:.2f})')
                 
                 # Shade background green for positive correlation
                 ax.set_facecolor('#e8f5e9')
@@ -1324,7 +1382,7 @@ def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_
                     spine.set_edgecolor('darkgreen')
                     spine.set_alpha(0.3)
                     spine.set_linewidth(1.5)
-                
+        
         # Hide empty subplots
         for idx in range(n_positive, len(axes)):
             axes[idx].set_visible(False)
@@ -1382,33 +1440,27 @@ def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_
                 # Plot data for each well with individual regression lines
                 for well, r in wells_data:
                     well_data = df_all[df_all['Well'] == well]
-                    
-                    # Get valid data points
                     mask = (~well_data[log_var].isna()) & (~well_data[lab_var].isna())
                     x_data = well_data.loc[mask, log_var].values
                     y_data = well_data.loc[mask, lab_var].values
                     
                     if len(x_data) > 0:
-                        # Shorter well names in legend
                         well_short = well.replace('HRDH_', '')
                         ax.scatter(x_data, y_data, 
                                  color=well_colors[well], 
                                  alpha=0.6, 
                                  s=30,
-                                 label=f'{well_short} (r={r:.2f}, n={len(x_data)})',
+                                 label=f'{well_short} (r={r:.2f})',
                                  edgecolors='darkred',
                                  linewidth=0.5)
                         
-                        # Add individual well regression line (thinner, dashed)
+                        # Individual well regression line
                         if len(x_data) > 1:
-                            z_well = np.polyfit(x_data, y_data, 1)
-                            p_well = np.poly1d(z_well)
-                            x_line_well = np.linspace(x_data.min(), x_data.max(), 50)
-                            ax.plot(x_line_well, p_well(x_line_well), 
-                                   color=well_colors[well], 
-                                   linestyle='--', 
-                                   alpha=0.5, 
-                                   linewidth=1)
+                            z = np.polyfit(x_data, y_data, 1)
+                            p = np.poly1d(z)
+                            x_line = np.linspace(x_data.min(), x_data.max(), 100)
+                            ax.plot(x_line, p(x_line), color=well_colors[well], 
+                                   linestyle='--', alpha=0.5, linewidth=1)
                         
                         all_x.extend(x_data)
                         all_y.extend(y_data)
@@ -1417,48 +1469,15 @@ def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_
                 if len(all_x) > 3:
                     all_x = np.array(all_x)
                     all_y = np.array(all_y)
+                    combined_r = negative_correlations[idx][3]  # Use pre-calculated value
                     
-                    # Use the pre-calculated combined_r
-                    combined_p = stats.pearsonr(all_x, all_y)[1]
-                    
-                    # Calculate R-squared
+                    # Combined regression line
                     z = np.polyfit(all_x, all_y, 1)
                     p = np.poly1d(z)
-                    y_pred = p(all_x)
-                    ss_res = np.sum((all_y - y_pred)**2)
-                    ss_tot = np.sum((all_y - np.mean(all_y))**2)
-                    r_squared = 1 - (ss_res / ss_tot)
-                    
-                    # Calculate 95% confidence interval for the regression line
-                    n = len(all_x)
-                    t_val = stats.t.ppf(0.975, n-2)  # 95% CI
-                    s_yx = np.sqrt(ss_res / (n-2))  # Standard error of estimate
-                    
                     x_line = np.linspace(all_x.min(), all_x.max(), 100)
-                    y_line = p(x_line)
-                    
-                    # Standard error for each predicted value
-                    x_mean = np.mean(all_x)
-                    se_line = s_yx * np.sqrt(1/n + (x_line - x_mean)**2 / np.sum((all_x - x_mean)**2))
-                    ci_upper = y_line + t_val * se_line
-                    ci_lower = y_line - t_val * se_line
-                    
-                    # Plot confidence interval
-                    ax.fill_between(x_line, ci_lower, ci_upper, 
-                                   color='darkred', alpha=0.1, 
-                                   label='95% CI')
-                    
-                    # Plot combined regression line
-                    ax.plot(x_line, y_line, color='darkred', 
+                    ax.plot(x_line, p(x_line), color='darkred', 
                            linestyle='-', alpha=0.8, linewidth=2.5,
-                           label=f'Combined: r={combined_r:.2f}, R²={r_squared:.2f}')
-                    
-                    # Add statistics box in corner
-                    stats_text = f'p={combined_p:.2e}\nn={len(all_x)}'
-                    ax.text(0.98, 0.02, stats_text, transform=ax.transAxes,
-                           bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8),
-                           verticalalignment='bottom', horizontalalignment='right',
-                           fontsize=8, color='darkred')
+                           label=f'Combined (r={combined_r:.2f})')
                 
                 # Shade background red for negative correlation
                 ax.set_facecolor('#ffebee')
@@ -1522,9 +1541,17 @@ def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_
         if n_wells >= 2:  # Only show 2+ wells
             corrs = correlations_by_well_count[n_wells]
             if corrs:
-                pos_count = sum(1 for _, _, info in corrs if info['correlation_type'] == 'Positive')
-                neg_count = sum(1 for _, _, info in corrs if info['correlation_type'] == 'Negative')
-                print(f"\n{n_wells} wells: {len(corrs)} total ({pos_count} positive, {neg_count} negative)")
+                # Count correlations that meet the threshold
+                corrs_meeting_threshold = []
+                for pair, wells_data, info in corrs:
+                    log_var, lab_var = pair
+                    combined_r = calculate_combined_correlation(df_all, log_var, lab_var)
+                    if not np.isnan(combined_r) and abs(combined_r) >= min_correlation:
+                        corrs_meeting_threshold.append((pair, wells_data, info, combined_r))
+                
+                pos_count = sum(1 for _, _, _, r in corrs_meeting_threshold if r > 0)
+                neg_count = sum(1 for _, _, _, r in corrs_meeting_threshold if r < 0)
+                print(f"\n{n_wells} wells: {len(corrs_meeting_threshold)} total meeting |r| ≥ {min_correlation} ({pos_count} positive, {neg_count} negative)")
     
     # Top correlations summary
     print("\nTop 10 Positive Correlations (by combined r, 2+ wells):")
@@ -1540,7 +1567,6 @@ def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_
         wells_involved = [well.replace('HRDH_', '') for well, _ in wells_data]
         print(f"{i+1}. {log_var.replace('Log_', '')} vs {lab_var.replace('Lab_', '')}: " +
               f"Combined r = {combined_r:.3f} (Wells: {', '.join(wells_involved)})")
-
 
 LOG_DESCRIPTIONS = {
     'CN':   'Compensated Neutron Porosity',
