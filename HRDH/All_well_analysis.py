@@ -357,7 +357,6 @@ def visualize_missing_data_by_well(df_all, lab_columns, log_columns):
     for _, row in inconsistent.head(10).iterrows():
         print(f"  - {row['Variable']}: {row['Min_Completeness']:.1f}% to {row['Max_Completeness']:.1f}% (range: {row['Range']:.1f}%)")
 
-
 def calculate_correlations_by_well(df_all, lab_columns, log_columns, min_samples=10):
     """
     Calculate correlation matrices between lab and log measurements for each well.
@@ -786,214 +785,6 @@ def print_categorized_correlation_summary(correlations_by_well_count, report_dat
     return pd.DataFrame(all_summary_data) if all_summary_data else None
 
 
-def analyze_correlation_consistency(common_correlations, well_correlations, export_path=None):
-    """
-    Analyze how consistent correlations are across wells.
-    Enhanced version with comprehensive statistical analysis and visualization.
-    """
-    consistency_data = []
-    
-    # Handle both old and new formats
-    correlations_to_analyze = common_correlations[:50]  # Analyze top 50 for better coverage
-    
-    for item in correlations_to_analyze:
-        if len(item) == 3:
-            pair, wells_data, info = item
-        else:
-            pair, wells_data = item
-            info = {}
-            
-        log_var, lab_var = pair
-        
-        # Collect all correlation data across wells
-        all_well_data = []
-        for well, matrices in well_correlations.items():
-            corr_matrix = matrices['correlation'] if isinstance(matrices, dict) else matrices
-            pvalue_matrix = matrices.get('pvalue', None) if isinstance(matrices, dict) else None
-            sample_size_matrix = matrices.get('sample_size', None) if isinstance(matrices, dict) else None
-            
-            if log_var in corr_matrix.index and lab_var in corr_matrix.columns:
-                r = corr_matrix.loc[log_var, lab_var]
-                if not pd.isna(r):
-                    well_data = {
-                        'well': well,
-                        'correlation': r,
-                        'pvalue': pvalue_matrix.loc[log_var, lab_var] if pvalue_matrix is not None else np.nan,
-                        'sample_size': sample_size_matrix.loc[log_var, lab_var] if sample_size_matrix is not None else np.nan
-                    }
-                    all_well_data.append(well_data)
-        
-        if len(all_well_data) >= 2:
-            r_values = [d['correlation'] for d in all_well_data]
-            p_values = [d['pvalue'] for d in all_well_data if not pd.isna(d['pvalue'])]
-            n_samples = [d['sample_size'] for d in all_well_data if not pd.isna(d['sample_size'])]
-            
-            # Calculate comprehensive consistency metrics
-            consistency_metrics = {
-                'Variable_Pair': f'{log_var.replace("Log_", "")} vs {lab_var.replace("Lab_", "")}',
-                'Log_Variable': log_var,
-                'Lab_Variable': lab_var,
-                'N_Wells': len(all_well_data),
-                'Mean_r': np.mean(r_values),
-                'Median_r': np.median(r_values),
-                'Std_r': np.std(r_values),
-                'Min_r': np.min(r_values),
-                'Max_r': np.max(r_values),
-                'Range_r': np.max(r_values) - np.min(r_values),
-                'CV_r': np.std(r_values) / np.mean(np.abs(r_values)) if np.mean(np.abs(r_values)) > 0 else np.nan,
-                'All_Same_Sign': all(r > 0 for r in r_values) or all(r < 0 for r in r_values),
-                'Correlation_Type': 'Positive' if np.mean(r_values) > 0 else 'Negative',
-                'Avg_Sample_Size': np.mean(n_samples) if n_samples else np.nan,
-                'Total_Samples': np.sum(n_samples) if n_samples else np.nan,
-                'Avg_P_Value': np.mean(p_values) if p_values else np.nan,
-                'All_Significant': all(p < 0.05 for p in p_values) if p_values else False
-            }
-            
-            # Add individual well correlations
-            for well_data in all_well_data:
-                well_name = well_data['well']
-                consistency_metrics[f'{well_name}_r'] = well_data['correlation']
-                consistency_metrics[f'{well_name}_p'] = well_data['pvalue']
-                consistency_metrics[f'{well_name}_n'] = well_data['sample_size']
-            
-            # Calculate consistency score (lower is better)
-            consistency_metrics['Consistency_Score'] = consistency_metrics['Std_r'] / abs(consistency_metrics['Mean_r'])
-            
-            consistency_data.append(consistency_metrics)
-    
-    # Create DataFrame and sort by consistency
-    consistency_df = pd.DataFrame(consistency_data)
-    consistency_df = consistency_df.sort_values('Std_r')
-    
-    # Add rankings
-    consistency_df['Consistency_Rank'] = range(1, len(consistency_df) + 1)
-    consistency_df['Strength_Rank'] = consistency_df['Mean_r'].abs().rank(ascending=False, method='min').astype(int)
-    
-    # Export if path provided
-    if export_path:
-        consistency_df.to_csv(export_path, index=False)
-        print(f"\n✅ Consistency analysis exported to: {export_path}")
-    
-    # Create enhanced visualization
-    if len(consistency_df) > 0:
-        fig, axes = plt.subplots(2, 2, figsize=(15, 12))
-        
-        # 1. Consistency vs Strength scatter with well count color coding
-        ax1 = axes[0, 0]
-        scatter = ax1.scatter(consistency_df['Mean_r'].abs(), 
-                             consistency_df['Std_r'],
-                             c=consistency_df['N_Wells'],
-                             s=consistency_df['Total_Samples']/10,
-                             alpha=0.6,
-                             cmap='viridis')
-        ax1.set_xlabel('Average |r|')
-        ax1.set_ylabel('Standard Deviation')
-        ax1.set_title('Correlation Consistency vs Strength\n(Size = Sample Count)')
-        ax1.grid(True, alpha=0.3)
-        plt.colorbar(scatter, ax=ax1, label='Number of Wells')
-        
-        # Add annotations for top 5 most consistent
-        for i, row in consistency_df.head(5).iterrows():
-            ax1.annotate(row['Variable_Pair'], 
-                        (abs(row['Mean_r']), row['Std_r']),
-                        fontsize=8, alpha=0.7)
-        
-        # 2. Top consistent correlations with error bars
-        ax2 = axes[0, 1]
-        top_consistent = consistency_df.head(10)
-        y_pos = np.arange(len(top_consistent))
-        ax2.barh(y_pos, top_consistent['Mean_r'].abs())
-        ax2.set_yticks(y_pos)
-        ax2.set_yticklabels(top_consistent['Variable_Pair'], fontsize=8)
-        ax2.set_xlabel('Average |r|')
-        ax2.set_title('Top 10 Most Consistent Correlations')
-        ax2.grid(True, alpha=0.3, axis='x')
-        
-        # Add error bars
-        ax2.errorbar(top_consistent['Mean_r'].abs(), y_pos, 
-                    xerr=top_consistent['Std_r'], 
-                    fmt='none', color='red', alpha=0.5)
-        
-        # 3. Correlation range plot
-        ax3 = axes[1, 0]
-        top_15 = consistency_df.head(15)
-        for i, row in enumerate(top_15.iterrows()):
-            _, data = row
-            ax3.plot([data['Min_r'], data['Max_r']], [i, i], 'b-', linewidth=2)
-            ax3.plot(data['Mean_r'], i, 'ro', markersize=8)
-        ax3.set_yticks(range(len(top_15)))
-        ax3.set_yticklabels(top_15['Variable_Pair'], fontsize=8)
-        ax3.set_xlabel('Correlation Range')
-        ax3.set_title('Correlation Ranges Across Wells (Top 15)')
-        ax3.grid(True, alpha=0.3, axis='x')
-        ax3.axvline(x=0, color='black', linestyle='--', alpha=0.3)
-        
-        # 4. Well distribution histogram
-        ax4 = axes[1, 1]
-        well_counts = consistency_df['N_Wells'].value_counts().sort_index()
-        ax4.bar(well_counts.index, well_counts.values)
-        ax4.set_xlabel('Number of Wells')
-        ax4.set_ylabel('Number of Correlations')
-        ax4.set_title('Distribution of Correlations by Well Count')
-        ax4.set_xticks(well_counts.index)
-        ax4.grid(True, alpha=0.3, axis='y')
-        
-        # Add value labels on bars
-        for i, (wells, count) in enumerate(well_counts.items()):
-            ax4.text(wells, count + 0.5, str(count), ha='center')
-        
-        plt.suptitle('Correlation Consistency Analysis', fontsize=16, fontweight='bold')
-        plt.tight_layout()
-        plt.savefig('imgs/correlation_consistency_analysis_enhanced.png', dpi=300, bbox_inches='tight')
-        plt.show()
-    
-    # Print enhanced summary
-    print("\n" + "="*80)
-    print("CORRELATION CONSISTENCY ANALYSIS")
-    print("="*80)
-    
-    print(f"\nAnalyzed {len(consistency_df)} correlation pairs")
-    
-    if len(consistency_df) > 0:
-        # Summary by number of wells
-        print("\n📊 DISTRIBUTION BY NUMBER OF WELLS:")
-        print("-" * 60)
-        for n_wells in sorted(consistency_df['N_Wells'].unique()):
-            subset = consistency_df[consistency_df['N_Wells'] == n_wells]
-            print(f"{n_wells} wells: {len(subset)} correlations "
-                  f"(avg σ = {subset['Std_r'].mean():.3f}, avg |r| = {subset['Mean_r'].abs().mean():.3f})")
-        
-        print("\n🏆 MOST CONSISTENT CORRELATIONS (lowest std):")
-        print("-" * 80)
-        for i, row in consistency_df.head(10).iterrows():
-            print(f"{i+1:2}. {row['Variable_Pair']:<40} σ = {row['Std_r']:.3f}, "
-                  f"|r̄| = {abs(row['Mean_r']):.3f}, n_wells = {row['N_Wells']}")
-            
-        print("\n💪 STRONGEST AVERAGE CORRELATIONS:")
-        print("-" * 80)
-        strongest = consistency_df.nlargest(10, 'Mean_r', keep='all')
-        for i, (_, row) in enumerate(strongest.iterrows()):
-            print(f"{i+1:2}. {row['Variable_Pair']:<40} |r̄| = {abs(row['Mean_r']):.3f}, "
-                  f"σ = {row['Std_r']:.3f}, n_wells = {row['N_Wells']}")
-        
-        # Find problematic correlations
-        print("\n⚠️  INCONSISTENT CORRELATIONS (high std or mixed signs):")
-        print("-" * 80)
-        problematic = consistency_df[
-            (consistency_df['Std_r'] > 0.2) | (~consistency_df['All_Same_Sign'])
-        ].head(10)
-        
-        if len(problematic) > 0:
-            for i, row in problematic.iterrows():
-                sign_issue = " [Mixed signs]" if not row['All_Same_Sign'] else ""
-                print(f"• {row['Variable_Pair']:<40} σ = {row['Std_r']:.3f}, "
-                      f"range = {row['Range_r']:.3f}{sign_issue}")
-        else:
-            print("No highly inconsistent correlations found!")
-    
-    return consistency_df
-
-
 def find_common_correlations(well_correlations, min_correlation=0.5, min_wells=2):
     """
     Find correlations that appear in multiple wells.
@@ -1185,7 +976,7 @@ def create_correlation_coverage_heatmap(common_correlations, well_correlations, 
     plt.show()
 
 
-def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_count, max_plots_per_figure=20):
+def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_count, min_correlation, max_plots_per_figure=20):
     """
     Create two comprehensive scatter plot figures: one for positive and one for negative correlations.
     Only shows correlations that appear in 2+ wells.
@@ -1253,9 +1044,9 @@ def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_
     all_positive_corrs = [(pair, wells_data, info) for pair, wells_data, info, _ in positive_correlations]
     all_negative_corrs = [(pair, wells_data, info) for pair, wells_data, info, _ in negative_correlations]
     
-    print(f"\nCorrelation Classification Summary (2+ wells only):")
-    print(f"Positive correlations (combined r > 0): {len(all_positive_corrs)}")
-    print(f"Negative correlations (combined r < 0): {len(all_negative_corrs)}")
+    print(f"\nCorrelation Classification Summary (2+ wells):")
+    print(f"Positive correlations (combined r > {min_correlation}): {len(all_positive_corrs)}")
+    print(f"Negative correlations (combined r < {min_correlation}): {len(all_negative_corrs)}")
     
     # Check for mixed-sign correlations
     mixed_count = 0
