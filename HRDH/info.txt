@@ -158,75 +158,65 @@ XRF Lab Element Descriptions
 Each of the following variables represents the concentration of a chemical element measured using X-Ray Fluorescence (XRF).
 These are used in geochemical analysis of core samples to infer mineralogical, depositional, and diagenetic information.
 
-----------------------------
-Major Elements (Rock Formers)
-----------------------------
+-----------------------------------------------
+Transition / Critical Minerals (High Priority)
+-----------------------------------------------
 
- Sodium (Na)
-  - Common in feldspars (albite) and evaporites.
-  - Indicates salinity or hydrothermal alteration.
+Lab_XRF_Mg  - Magnesium (Mg)
+  - Used in lightweight alloys for electric vehicles and aerospace.
+  - May be used in future battery chemistries.
 
- Magnesium (Mg)
-  - Present in dolomite, chlorite, and serpentine.
-  - Associated with carbonates or mafic inputs.
+Lab_XRF_Ti  - Titanium (Ti)
+  - Strong, lightweight metal used in wind turbines, hydrogen systems, and aerospace.
+  - Critical due to limited refining capacity.
+
+Lab_XRF_Mn  - Manganese (Mn)
+  - Key ingredient in lithium-ion batteries (especially NMC-type).
+  - Also used in steel alloys.
+
+Lab_XRF_Fe  - Iron (Fe)
+  - Essential for steel production; foundational to wind, solar, and EV infrastructure.
+  - Not rare, but strategically important.
+
+Lab_XRF_Zr  - Zirconium (Zr)
+  - Used in nuclear reactors, corrosion-resistant alloys.
+  - Gaining attention for green hydrogen applications.
+
+Lab_XRF_Sr  - Strontium (Sr)
+  - Used in advanced ceramics and magnets; minor but potentially strategic.
+
+Lab_XRF_Ba  - Barium (Ba)
+  - Used in barite for drilling fluids; indirectly important for geothermal, CCS, and oil/gas support in energy transition.
+
+-------------------------------------
+ Not Considered Transition Minerals
+-------------------------------------
+
+Lab_XRF_Na  - Sodium (Na)
+  - Common in nature. Relevant for sodium-ion batteries, but not yet critical.
 
 Lab_XRF_Al  - Aluminum (Al)
-  - Found in clays (kaolinite, illite) and feldspars.
-  - High values may indicate shaliness or alteration.
+  - Used in transmission lines and vehicles. Important, but abundant; refining is the bottleneck.
 
- Silicon (Si)
-  - Primary component of quartz and silicates.
-  - High Si usually means quartz-rich, clean sandstones.
+Lab_XRF_Si  - Silicon (Si)
+  - Backbone of solar panels. Not rare, but ultra-pure silicon is strategically important.
 
- Phosphorus (P)
-  - Typically from apatite or organics.
-  - Can point to phosphatic or organic-rich zones.
+Lab_XRF_P   - Phosphorus (P)
+  - Primarily used in fertilizers; not part of the clean energy tech stack.
 
- Sulfur (S)
-  - Found in pyrite, gypsum, and other sulfides/sulfates.
-  - Indicates reducing environments, sour gas potential.
+Lab_XRF_S   - Sulfur (S)
+  - Used industrially and in sulfur-based batteries (early stage); not a priority mineral.
 
- Chlorine (Cl)
-  - Present in halite or brine-saturated samples.
-  - Associated with saline fluids or evaporites.
+Lab_XRF_Cl  - Chlorine (Cl)
+  - Industrial uses; not related to energy tech directly.
 
- Potassium (K)
-  - Common in illite, K-feldspar, and mica.
-  - Useful for clay typing and correlates with gamma ray logs.
+Lab_XRF_K   - Potassium (K)
+  - Agricultural relevance; not related to energy transition.
 
- Calcium (Ca)
-  - Dominant in calcite, aragonite, dolomite.
-  - Indicates carbonate content or diagenesis.
+Lab_XRF_Ca  - Calcium (Ca)
+  - Common carbonate component. No specific clean tech application.
 
--------------------------------
-Minor / Trace Elements (Diagnostic)
--------------------------------
-
- Titanium (Ti)
-  - Occurs in heavy minerals (e.g., rutile).
-  - Indicates detrital input or sediment maturity.
-
- Manganese (Mn)
-  - Found in carbonates and oxides.
-  - Redox-sensitive; may reflect diagenesis or water chemistry shifts.
-
- Iron (Fe)
-  - Present in pyrite, hematite, siderite, clays.
-  - Indicates redox conditions and mineral alteration.
-
- Zirconium (Zr)
-  - Associated with zircon.
-  - Reflects sediment provenance and maturity.
-
- Strontium (Sr)
-  - Substitutes for Ca in carbonates.
-  - Sr/Ca ratio is useful for paleoenvironment analysis.
-
- Barium (Ba)
-  - Found in barite.
-  - Indicates hydrothermal fluids or organic-rich deposition zones.
-
-
+-------------------------------------
 
 
  
