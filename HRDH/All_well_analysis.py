@@ -1719,7 +1719,7 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
     # --- Figure 1: Combined Correlations with Clean Annotations ---
     fig1, ax1 = plt.subplots(figsize=(18, 14))  # Increased height for legend
     
-    # Create custom annotations - more compact format with wells info
+    # Create custom annotations - simplified format with just correlation and number of wells
     annot_text = np.empty_like(combined_corr_matrix, dtype=object)
     for i in range(len(combined_corr_matrix.index)):
         for j in range(len(combined_corr_matrix.columns)):
@@ -1728,23 +1728,10 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
             wells_list = wells_with_data_matrix.iloc[i, j]
             
             if pd.notna(r) and n > 0:
-                # Format well names - just the numbers
-                well_numbers = [w.split('_')[1] for w in wells_list]
                 n_wells = len(wells_list)
                 
-                # Create multi-line annotation based on number of wells
-                if n_wells == 4:
-                    # Don't mention well names when all 4 wells are present
-                    annot_text[i, j] = f'{r:.2f}\nn={n}\n(all wells)'
-                elif n_wells == 3:
-                    # For 3 wells, use abbreviated format
-                    annot_text[i, j] = f'{r:.2f}\nn={n}\n(3 wells)'
-                elif n_wells == 2:
-                    # For 2 wells, show the well numbers
-                    annot_text[i, j] = f'{r:.2f}\nn={n}\n({",".join(well_numbers)})'
-                else:
-                    # For 1 well
-                    annot_text[i, j] = f'{r:.2f}\nn={n}\n({well_numbers[0]})'
+                # Create simplified two-line annotation
+                annot_text[i, j] = f'{r:.2f}\n{n_wells} wells'
             else:
                 annot_text[i, j] = ''
     
@@ -1768,7 +1755,7 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
     
     # Improve title and labels
     ax1.set_title('Combined Correlations: All Wells Pooled Together\n' + 
-                  'Pearson correlation coefficient (r) with sample size (n)', 
+                  'Pearson correlation coefficient with number of wells', 
                   fontsize=16, fontweight='bold', pad=20)
     ax1.set_xlabel('Laboratory Measurements', fontsize=13, fontweight='bold')
     ax1.set_ylabel('Geophysical Log Measurements', fontsize=13, fontweight='bold')
@@ -1810,7 +1797,7 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
     n_strong = (~mask_weak & ~pd.isna(combined_corr_matrix)).sum().sum()
     n_very_strong = (np.abs(combined_corr_matrix) >= 0.7).sum().sum()
     
-    # Create annotations only for strong correlations - cleaner format with wells info
+    # Create annotations only for strong correlations - simplified format
     strong_annot_text = np.empty_like(combined_corr_matrix, dtype=object)
     for i in range(len(combined_corr_matrix.index)):
         for j in range(len(combined_corr_matrix.columns)):
@@ -1819,23 +1806,10 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
             wells_list = wells_with_data_matrix.iloc[i, j]
             
             if pd.notna(r) and abs(r) >= strong_threshold and n > 0:
-                # Format well names - just the numbers
-                well_numbers = [w.split('_')[1] for w in wells_list]
                 n_wells = len(wells_list)
                 
-                # Create multi-line annotation based on number of wells
-                if n_wells == 4:
-                    # Don't mention well names when all 4 wells are present
-                    strong_annot_text[i, j] = f'{r:.2f}\nn={n}\n(all wells)'
-                elif n_wells == 3:
-                    # For 3 wells, use abbreviated format
-                    strong_annot_text[i, j] = f'{r:.2f}\nn={n}\n(3 wells)'
-                elif n_wells == 2:
-                    # For 2 wells, show the well numbers
-                    strong_annot_text[i, j] = f'{r:.2f}\nn={n}\n({",".join(well_numbers)})'
-                else:
-                    # For 1 well
-                    strong_annot_text[i, j] = f'{r:.2f}\nn={n}\n({well_numbers[0]})'
+                # Create simplified two-line annotation
+                strong_annot_text[i, j] = f'{r:.2f}\n{n_wells} wells'
             else:
                 strong_annot_text[i, j] = ''
     
@@ -1856,7 +1830,7 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
     
     # Improve title and labels
     ax3.set_title(f'Strong Combined Correlations Only (|r| ≥ 0.5)\n' +
-                  f'Pearson correlation coefficient (r) with sample size (n)', 
+                  f'Pearson correlation coefficient with number of wells', 
                   fontsize=16, fontweight='bold', pad=20)
     ax3.set_xlabel('Laboratory Measurements', fontsize=13, fontweight='bold')
     ax3.set_ylabel('Geophysical Log Measurements', fontsize=13, fontweight='bold')
