@@ -15,208 +15,385 @@ from scipy import stats
 
 ########################################################################################
 # All_well_analysis
-def fix_duplicate_columns(df, well_name):
-    """Fix duplicate columns by merging data from duplicates into the original column."""
-    columns = df.columns.tolist()
-    seen = {}
-    duplicates = {}
-    
-    for i, col in enumerate(columns):
-        if col in seen:
-            if col not in duplicates:
-                duplicates[col] = [seen[col]]
-            duplicates[col].append(i)
-        else:
-            seen[col] = i
-    
-    if duplicates:
-        print(f"\nFound duplicate columns in {well_name}:")
-        for col, indices in duplicates.items():
-            print(f"  - '{col}' appears at indices: {indices}")
-        
-        # Fix duplicates by merging data
-        for col_name, indices in duplicates.items():
-            dup_cols = [df.iloc[:, idx] for idx in indices]
-            merged_data = dup_cols[0].copy()
-            
-            for dup_col in dup_cols[1:]:
-                mask = merged_data.isna() & ~dup_col.isna()
-                merged_data[mask] = dup_col[mask]
-            
-            df.iloc[:, indices[0]] = merged_data
-            original_nulls = dup_cols[0].isna().sum()
-            final_nulls = merged_data.isna().sum()
-            recovered = original_nulls - final_nulls
-            
-            print(f"    Merged {len(indices)} columns named '{col_name}'")
-            print(f"    Recovered {recovered} missing values")
-        
-        df = df.loc[:, ~df.columns.duplicated(keep='first')]
-        print(f"  Removed duplicate columns")
-    
-    return df
 
-def load_all_wells_csv_fixed():
-    """Load all well CSV files with duplicate column fixing."""
-    base_path = Path('.')
-    all_data = []
+#1. Data Loading Function
+def load_all_wells_data(base_path="."):
     
+    """
+    Load all joined CSV files from HRDH_* folders and combine them into a single DataFrame.
+    Handles duplicate columns automatically.
+    
+    Parameters:
+    -----------
+    base_path : str or Path
+        Base directory containing HRDH_* folders with joined CSV files
+    
+    Returns:
+    --------
+    DataFrame
+        Combined DataFrame with data from all wells
+    """
+    from pathlib import Path
+    import pandas as pd
+    
+    # Find all joined CSV files
+    base_path = Path(base_path)
     joined_files = list(base_path.glob('HRDH_*/HRDH_*_joined.csv'))
-    
-    if not joined_files:
-        raise FileNotFoundError("No joined CSV files found")
     
     print(f"Found {len(joined_files)} joined CSV files:")
     for file in joined_files:
         print(f"  {file}")
     
-    for file in joined_files:
-        well_name = file.parent.name
-        df = pd.read_csv(file)
-        
-        # Fix duplicate columns if present
-        df = fix_duplicate_columns(df, well_name)
-        
-        # Add well identifier
-        df['Well'] = well_name
-        df.columns = df.columns.str.strip()
-        
-        print(f"Loaded {well_name}: {len(df)} samples, {len(df.columns)} columns")
-        all_data.append(df)
-    
-    df_combined = pd.concat(all_data, ignore_index=True, sort=True)
-    print(f"\nCombined dataset: {len(df_combined)} total samples from {len(all_data)} wells")
-    print(f"Total columns after merge: {len(df_combined.columns)}")
-    
-    return df_combined
-
-def load_all_wells_csv(base_path="."):
-    
-
-    """Load all joined CSV files and combine them into a single DataFrame"""
-    
-    # Find all joined CSV files
-    csv_files = list(Path(base_path).glob('HRDH_*/HRDH_*_joined.csv'))
-    
-    print(f"Found {len(csv_files)} joined CSV files:")
-    for file in csv_files:
-        print(f"{file}")
-    
-    if len(csv_files) == 0:
-        print("No joined CSV files found!")
-        return pd.DataFrame()
+    if not joined_files:
+        raise FileNotFoundError("No joined CSV files found in specified path")
     
     # Load each file and add well identifier
-    all_wells = []
+    all_data = []
     
-    for csv_file in csv_files:
+    for file in joined_files:
         try:
             # Extract well name from folder name
-            well_name = csv_file.parent.name
+            well_name = file.parent.name
             
             # Load data
-            df = pd.read_csv(csv_file)
+            df = pd.read_csv(file)
             
-            # Add well identifier as the first column for easy identification
-            df.insert(0, 'Well', well_name)
+            # Handle duplicate columns
+            if df.columns.duplicated().any():
+                print(f"  Found duplicate columns in {well_name}")
+                
+                # Process each duplicate column
+                for col in df.columns[df.columns.duplicated(keep=False)]:
+                    # Get all columns with this name
+                    dup_cols = [df[c] for c in df.columns if c == col]
+                    
+                    # Create a merged series starting with the first occurrence
+                    merged = dup_cols[0].copy()
+                    
+                    # Fill NaN values from subsequent duplicates
+                    for dup in dup_cols[1:]:
+                        merged = merged.fillna(dup)
+                    
+                    # Replace the first occurrence with merged data
+                    df[col] = merged
+                
+                # Keep only first occurrence of each column
+                df = df.loc[:, ~df.columns.duplicated(keep='first')]
+                print(f"    Merged duplicate columns")
+            
+            # Add well identifier
+            df['Well'] = well_name
+            
+            # Clean column names
+            df.columns = df.columns.str.strip()
             
             # Add to list
-            all_wells.append(df)
+            all_data.append(df)
             
-            print(f"Loaded {well_name}: {df.shape[0]} samples, {df.shape[1]} columns")
+            print(f"Loaded {well_name}: {len(df)} samples, {len(df.columns)} columns")
             
         except Exception as e:
-            print(f"Error loading {csv_file}: {e}")
-            continue
+            print(f"Error loading {file}: {e}")
     
-    if len(all_wells) == 0:
-        print("No files were successfully loaded!")
-        return pd.DataFrame()
+    if not all_data:
+        raise ValueError("No files were successfully loaded")
     
     # Concatenate all dataframes
-    df_all = pd.concat(all_wells, ignore_index=True)
+    df_all = pd.concat(all_data, ignore_index=True, sort=True)
     
-    # Ensure Well column is properly typed
+    # Ensure Well column is a category for efficiency
     df_all['Well'] = df_all['Well'].astype('category')
     
-    print(f"\nCombined dataset: {df_all.shape[0]} total samples from {df_all['Well'].nunique()} wells")
-    print(f"Wells: {', '.join(df_all['Well'].unique())}")
-    print(f"Sample distribution by well:")
-    print(df_all['Well'].value_counts().to_string())
+    print(f"\nCombined dataset: {len(df_all)} total samples from {df_all['Well'].nunique()} wells")
+    print(f"Wells: {', '.join(sorted(df_all['Well'].unique()))}")
+    print(f"Total columns: {len(df_all.columns)}")
     
     return df_all
-
-    """Find ALL correlations and categorize them by how many wells they appear in."""
-    correlation_tracker = {}
-    all_wells = list(well_correlations.keys())
-    total_wells = len(all_wells)
+#2. Correlation Calculation Function
+def calculate_well_correlations(df_all, min_samples=10):
+    """
+    Calculate correlations between log and lab measurements for each well.
     
-    # Find correlations in each well
-    for well, corr_matrix in well_correlations.items():
+    Parameters:
+    -----------
+    df_all : DataFrame
+        Combined dataframe with all wells
+    min_samples : int
+        Minimum number of samples required for correlation calculation
+        
+    Returns:
+    --------
+    tuple : (well_correlations, well_stats)
+        - well_correlations: Dict with correlation matrices for each well
+        - well_stats: Dict with statistics for each well
+    """
+    import pandas as pd
+    import numpy as np
+    from scipy.stats import pearsonr
+    
+    # Extract log and lab columns
+    lab_columns = [col for col in df_all.columns if col.startswith('Lab_') and 
+                  col not in ['Lab_Depth', 'Lab_Sample_ID']]
+    log_columns = [col for col in df_all.columns if col.startswith('Log_') and 
+                  col not in ['Log_Depth', 'Log_FRAMENO']]
+    
+    print(f"Found {len(lab_columns)} lab variables and {len(log_columns)} log variables")
+    
+    well_correlations = {}
+    well_stats = {}
+    
+    for well in sorted(df_all['Well'].unique()):
+        print(f"Processing {well}...")
+        
+        # Filter data for this well
+        well_data = df_all[df_all['Well'] == well].copy()
+        
+        # Select only columns that exist in this well's data
+        available_log_cols = [col for col in log_columns if col in well_data.columns]
+        available_lab_cols = [col for col in lab_columns if col in well_data.columns]
+        
+        if not available_log_cols or not available_lab_cols:
+            print(f"  Warning: No valid log or lab columns for {well}")
+            continue
+            
+        # Initialize correlation matrices
+        correlation_matrix = pd.DataFrame(index=available_log_cols, columns=available_lab_cols, dtype=float)
+        pvalue_matrix = pd.DataFrame(index=available_log_cols, columns=available_lab_cols, dtype=float)
+        sample_size_matrix = pd.DataFrame(index=available_log_cols, columns=available_lab_cols, dtype=int)
+        
+        # Calculate correlations for each log-lab pair
+        total_pairs = len(available_log_cols) * len(available_lab_cols)
+        valid_correlations = 0
+        correlation_values = []
+        
+        for log_col in available_log_cols:
+            for lab_col in available_lab_cols:
+                # Find samples with both measurements
+                common_indices = well_data[log_col].notna() & well_data[lab_col].notna()
+                common_data = well_data.loc[common_indices, [log_col, lab_col]]
+                
+                if len(common_data) >= min_samples:
+                    x = common_data[log_col]
+                    y = common_data[lab_col]
+                    
+                    # Only calculate if we have variation in the data
+                    if x.std() > 0 and y.std() > 0:
+                        try:
+                            r, p = pearsonr(x, y)
+                            correlation_matrix.loc[log_col, lab_col] = r
+                            pvalue_matrix.loc[log_col, lab_col] = p
+                            sample_size_matrix.loc[log_col, lab_col] = len(common_data)
+                            
+                            correlation_values.append(abs(r))
+                            valid_correlations += 1
+                            
+                        except Exception as e:
+                            print(f"    Error calculating correlation for {log_col} vs {lab_col}: {e}")
+                            correlation_matrix.loc[log_col, lab_col] = np.nan
+                            pvalue_matrix.loc[log_col, lab_col] = np.nan
+                            sample_size_matrix.loc[log_col, lab_col] = 0
+                    else:
+                        # Skip if no variation
+                        correlation_matrix.loc[log_col, lab_col] = np.nan
+                        pvalue_matrix.loc[log_col, lab_col] = np.nan
+                        sample_size_matrix.loc[log_col, lab_col] = len(common_data)
+                else:
+                    # Not enough samples
+                    correlation_matrix.loc[log_col, lab_col] = np.nan
+                    pvalue_matrix.loc[log_col, lab_col] = np.nan
+                    sample_size_matrix.loc[log_col, lab_col] = len(common_data)
+        
+        # Store results for this well
+        well_correlations[well] = {
+            'correlation': correlation_matrix,
+            'pvalue': pvalue_matrix,
+            'sample_size': sample_size_matrix
+        }
+        
+        # Calculate statistics for this well
+        coverage = (valid_correlations / total_pairs) * 100 if total_pairs > 0 else 0
+        mean_abs_corr = np.mean(correlation_values) if correlation_values else 0
+        
+        # Count strong and moderate correlations
+        strong_corr = sum(1 for r in correlation_values if r >= 0.7)
+        moderate_corr = sum(1 for r in correlation_values if 0.5 <= r < 0.7)
+        
+        well_stats[well] = {
+            'total_pairs': total_pairs,
+            'valid_correlations': valid_correlations,
+            'coverage': coverage,
+            'mean_abs_correlation': mean_abs_corr,
+            'strong_correlations': strong_corr,
+            'moderate_correlations': moderate_corr,
+            'total_samples': len(well_data)
+        }
+        
+        print(f"  {well}: {valid_correlations}/{total_pairs} valid correlations ({coverage:.1f}% coverage)")
+        print(f"  Mean |r|: {mean_abs_corr:.3f}, Strong: {strong_corr}, Moderate: {moderate_corr}")
+    
+    return well_correlations, well_stats
+
+#3. Common Correlation Analysis Function
+def find_common_correlations(well_correlations, corr_threshold=0.5, min_wells=2):
+    """
+    Find correlations that appear in multiple wells above the specified threshold.
+    
+    Parameters:
+    -----------
+    well_correlations : dict
+        Dictionary with correlation matrices for each well
+    corr_threshold : float
+        Minimum absolute correlation value to consider
+    min_wells : int
+        Minimum number of wells a correlation must appear in
+    
+    Returns:
+    --------
+    DataFrame
+        Summary of common correlations
+    """
+    import pandas as pd
+    import numpy as np
+    
+    # Track all correlations
+    all_correlations = {}
+    
+    # Process each well
+    for well, matrices in well_correlations.items():
+        corr_matrix = matrices['correlation']
+        
+        # Find correlations above threshold
         for log_var in corr_matrix.index:
             for lab_var in corr_matrix.columns:
                 r = corr_matrix.loc[log_var, lab_var]
                 
-                # Check if correlation meets minimum threshold (using absolute value for threshold only)
-                if pd.notna(r) and abs(r) >= min_correlation:
-                    pair = (log_var, lab_var)
+                # Only consider valid correlations above threshold
+                if pd.notna(r) and abs(r) >= corr_threshold:
+                    pair_key = (log_var, lab_var)
                     
-                    if pair not in correlation_tracker:
-                        correlation_tracker[pair] = []
+                    # Initialize if first time seeing this pair
+                    if pair_key not in all_correlations:
+                        all_correlations[pair_key] = {
+                            'log_var': log_var,
+                            'lab_var': lab_var,
+                            'wells_found_in': [],
+                            'r_values': {}
+                        }
                     
-                    # Store actual r value (not absolute)
-                    correlation_tracker[pair].append((well, r))
+                    # Add this well's correlation
+                    all_correlations[pair_key]['wells_found_in'].append(well)
+                    all_correlations[pair_key]['r_values'][well] = r
     
-    # Categorize correlations by number of wells
-    correlations_by_well_count = {2: [], 3: [], 4: []}
+    # Filter to pairs found in multiple wells and calculate statistics
+    common_pairs = []
     
-    for pair, wells_data in correlation_tracker.items():
-        n_wells = len(wells_data)
+    for pair_key, data in all_correlations.items():
+        num_wells = len(data['wells_found_in'])
         
-        if n_wells >= 2:  # Only include correlations in 2+ wells
-            # Calculate statistics using actual r values
-            r_values = [r for _, r in wells_data]
-            avg_r = np.mean(r_values)  # Average of actual r values
-            avg_abs_r = np.mean([abs(r) for r in r_values])  # For sorting/display
+        if num_wells >= min_wells:
+            r_values = list(data['r_values'].values())
+            avg_r = np.mean(r_values)
+            avg_abs_r = np.mean([abs(r) for r in r_values])
             std_r = np.std(r_values)
             
-            # Determine correlation type based on average r (not absolute)
-            if avg_r > 0:
-                correlation_type = "Positive"
-            else:
-                correlation_type = "Negative"
-            
-            # Check if all correlations have same sign
+            # Check if correlation has consistent direction
             all_positive = all(r > 0 for r in r_values)
             all_negative = all(r < 0 for r in r_values)
             consistent_direction = all_positive or all_negative
             
-            # Find missing wells
-            wells_present = [well for well, _ in wells_data]
-            missing_wells = [well for well in all_wells if well not in wells_present]
-            
-            info = {
-                'n_wells': n_wells,
-                'avg_corr': avg_r,  # Changed from avg_abs_corr to avg_corr
-                'avg_abs_corr': avg_abs_r,  # Keep for sorting
-                'std_corr': std_r,
-                'correlation_type': correlation_type,
-                'consistent_direction': consistent_direction,
-                'missing_wells': missing_wells
-            }
-            
-            if n_wells in correlations_by_well_count:
-                correlations_by_well_count[n_wells].append((pair, wells_data, info))
+            common_pairs.append({
+                'log_var': data['log_var'],
+                'lab_var': data['lab_var'],
+                'num_wells': num_wells,
+                'wells_found_in': sorted(data['wells_found_in']),
+                'r_values': data['r_values'],
+                'avg_r': avg_r,
+                'avg_abs_r': avg_abs_r,
+                'std_r': std_r,
+                'consistent_direction': consistent_direction
+            })
     
-    # Sort each category by average absolute correlation strength (for display purposes)
-    for n_wells in correlations_by_well_count:
-        correlations_by_well_count[n_wells].sort(
-            key=lambda x: x[2]['avg_abs_corr'], 
-            reverse=True
-        )
+    # Convert to DataFrame
+    if common_pairs:
+        df_common = pd.DataFrame(common_pairs)
+        
+        # Sort by number of wells (descending) and average absolute correlation (descending)
+        df_common = df_common.sort_values(['num_wells', 'avg_abs_r'], ascending=[False, False])
+        
+        return df_common
+    else:
+        return pd.DataFrame(columns=['log_var', 'lab_var', 'num_wells', 'wells_found_in', 
+                                    'r_values', 'avg_r', 'avg_abs_r', 'std_r', 'consistent_direction'])
+#4. Main Analysis Function
+def analyze_wells(base_path=".", corr_threshold=0.5, min_samples=10, min_wells=2):
+    """
+    Complete multi-well correlation analysis with adjustable threshold.
     
-    return correlations_by_well_count
+    Parameters:
+    -----------
+    base_path : str
+        Base path to search for HRDH_* folders
+    corr_threshold : float
+        Minimum correlation threshold (absolute value)
+    min_samples : int
+        Minimum samples needed for correlation calculation
+    min_wells : int
+        Minimum wells a correlation must appear in
+    
+    Returns:
+    --------
+    tuple
+        (df_all, well_correlations, well_stats, common_correlations)
+    """
+    # Step 1: Load all well data
+    df_all = load_all_wells_data(base_path)
+    
+    # Step 2: Calculate correlations for each well
+    well_correlations, well_stats = calculate_well_correlations(df_all, min_samples)
+    
+    # Step 3: Find common correlations across wells
+    common_correlations = find_common_correlations(
+        well_correlations, 
+        corr_threshold=corr_threshold,
+        min_wells=min_wells
+    )
+    
+    # Print summary
+    print("\n" + "="*80)
+    print(f"CORRELATION ANALYSIS SUMMARY (|r| ≥ {corr_threshold}, {min_wells}+ wells)")
+    print("="*80)
+    
+    print(f"\nFound {len(common_correlations)} correlation pairs in {min_wells}+ wells")
+    
+    if not common_correlations.empty:
+        # Count by number of wells
+        well_counts = common_correlations['num_wells'].value_counts().sort_index(ascending=False)
+        
+        print("\nDistribution by number of wells:")
+        for n_wells, count in well_counts.items():
+            print(f"  {n_wells} wells: {count} correlations")
+        
+        # Count consistent vs. inconsistent correlations
+        consistent = common_correlations['consistent_direction'].sum()
+        inconsistent = len(common_correlations) - consistent
+        
+        print(f"\nConsistent direction: {consistent} ({consistent/len(common_correlations)*100:.1f}%)")
+        print(f"Inconsistent direction: {inconsistent} ({inconsistent/len(common_correlations)*100:.1f}%)")
+        
+        # Show top correlations
+        print("\nTop 10 strongest correlations:")
+        top_10 = common_correlations.sort_values('avg_abs_r', ascending=False).head(10)
+        
+        for i, (_, row) in enumerate(top_10.iterrows(), 1):
+            log_name = row['log_var'].replace('Log_', '')
+            lab_name = row['lab_var'].replace('Lab_', '')
+            wells = [w.replace('HRDH_', '') for w in row['wells_found_in']]
+            
+            print(f"  {i}. {log_name} vs {lab_name}: r̄={row['avg_r']:.3f} ({row['num_wells']} wells: {', '.join(wells)})")
+    
+    return df_all, well_correlations, well_stats, common_correlations
 
+# visulaizez missningness
 def visualize_missing_data_by_well(df_all, lab_columns, log_columns):
     """
     Create missing data matrix and sample count visualizations grouped by well.
