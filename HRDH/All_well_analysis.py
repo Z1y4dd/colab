@@ -1060,139 +1060,6 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
 #             print(f"  Negative: {neg_count}")
 #             print(f"  Total: {len(corrs)}")
 
-#combined r
-# def create_comprehensive_correlation_scatter_plots_from_existing(df_all, correlations_by_well_count, min_correlation, 
-#                                                  min_samples_per_well=8, max_plots_per_figure=20):
-#     """
-#     Modified version that shows combined correlations in scatter plots
-#     """
-#     from pathlib import Path
-#     import matplotlib.pyplot as plt
-#     import numpy as np
-#     from scipy import stats
-    
-#     # Define well colors
-#     well_colors = {
-#         'HRDH_697': '#1f77b4',
-#         'HRDH_1119': '#d62728', 
-#         'HRDH_1804': '#2ca02c',
-#         'HRDH_1867': '#ff7f0e'
-#     }
-    
-#     # Create directories for plots organized by well count
-#     for n_wells in [2, 3, 4]:
-#         Path(f'imgs/scatter_by_wells/{n_wells}_wells').mkdir(parents=True, exist_ok=True)
-    
-#     # Process each well count separately
-#     for n_wells in [2, 3, 4]:
-#         if n_wells not in correlations_by_well_count or not correlations_by_well_count[n_wells]:
-#             continue
-            
-#         print(f"\nCreating scatter plots for {n_wells}-well correlations...")
-        
-#         # Get all correlations for this well count
-#         correlations = correlations_by_well_count[n_wells]
-        
-#         # Calculate combined correlations for sorting
-#         combined_corrs = []
-#         for pair, wells_data, info in correlations:
-#             log_var, lab_var = pair
-            
-#             # Get data only from the wells in wells_data
-#             well_names = [w for w, _ in wells_data]
-#             mask = df_all['Well'].isin(well_names)
-#             combined_data = df_all[mask][[log_var, lab_var]].dropna()
-            
-#             if len(combined_data) > 5:
-#                 combined_r, _ = stats.pearsonr(combined_data[log_var], combined_data[lab_var])
-#             else:
-#                 combined_r = info['avg_corr']  # Fallback to average
-                
-#             combined_corrs.append((pair, wells_data, info, combined_r))
-        
-#         # Sort by absolute combined correlation
-#         combined_corrs.sort(key=lambda x: abs(x[3]), reverse=True)
-        
-#         # Separate positive and negative
-#         positive_corrs = [(pair, wells_data, info, combined_r) for pair, wells_data, info, combined_r in combined_corrs 
-#                          if combined_r > 0]
-#         negative_corrs = [(pair, wells_data, info, combined_r) for pair, wells_data, info, combined_r in combined_corrs 
-#                          if combined_r < 0]
-        
-#         # Create summary figures for positive correlations
-#         if positive_corrs:
-#             n_plots = min(len(positive_corrs), max_plots_per_figure)
-#             n_cols = min(4, n_plots)
-#             n_rows = (n_plots + n_cols - 1) // n_cols
-            
-#             fig, axes = plt.subplots(n_rows, n_cols, figsize=(5*n_cols, 4*n_rows))
-#             if n_plots == 1:
-#                 axes = [axes]
-#             else:
-#                 axes = axes.flatten() if n_rows > 1 or n_cols > 1 else [axes]
-            
-#             fig.suptitle(f'{n_wells}-Well Positive Correlations (Top {n_plots} of {len(positive_corrs)} total)\nSorted by Combined Correlation Strength', 
-#                         fontsize=16, fontweight='bold', color='darkgreen')
-            
-#             for idx, (pair, wells_data, info, combined_r) in enumerate(positive_corrs[:n_plots]):
-#                 ax = axes[idx]
-#                 log_var, lab_var = pair
-                
-#                 # Plot ONLY the wells that have this correlation
-#                 all_x = []
-#                 all_y = []
-                
-#                 for well, well_r in wells_data:
-#                     well_data = df_all[df_all['Well'] == well]
-#                     mask = (~well_data[log_var].isna()) & (~well_data[lab_var].isna())
-#                     x_data = well_data.loc[mask, log_var].values
-#                     y_data = well_data.loc[mask, lab_var].values
-                    
-#                     if len(x_data) > 0:
-#                         well_short = well.replace('HRDH_', '')
-#                         ax.scatter(x_data, y_data, 
-#                                  color=well_colors[well], 
-#                                  alpha=0.6, s=30,
-#                                  label=f'{well_short} (r={well_r:.2f})',
-#                                  edgecolors='darkgreen',
-#                                  linewidth=0.5)
-                        
-#                         all_x.extend(x_data)
-#                         all_y.extend(y_data)
-                
-#                 # Add regression line using combined data
-#                 if len(all_x) > 3:
-#                     all_x = np.array(all_x)
-#                     all_y = np.array(all_y)
-#                     z = np.polyfit(all_x, all_y, 1)
-#                     p = np.poly1d(z)
-#                     x_line = np.linspace(all_x.min(), all_x.max(), 100)
-#                     ax.plot(x_line, p(x_line), 
-#                            color='darkgreen', 
-#                            linestyle='-', alpha=0.8, linewidth=2,
-#                            label=f'Combined r={combined_r:.2f}')
-                
-#                 # Styling
-#                 ax.set_facecolor('#e8f5e9')
-#                 ax.set_xlabel(log_var.replace('Log_', ''), fontsize=10)
-#                 ax.set_ylabel(lab_var.replace('Lab_', ''), fontsize=10)
-                
-#                 # Title with ONLY the wells that have this correlation
-#                 wells_str = ', '.join([w.replace('HRDH_', '') for w, _ in wells_data])
-#                 ax.set_title(f"{log_var.replace('Log_', '')} vs {lab_var.replace('Lab_', '')}\n({wells_str})", 
-#                            fontsize=9)
-                
-#                 ax.legend(fontsize=7, loc='best')
-#                 ax.grid(True, alpha=0.3)
-            
-#             # Hide empty subplots
-#             for idx in range(n_plots, len(axes)):
-#                 axes[idx].set_visible(False)
-            
-#             plt.tight_layout()
-#             plt.savefig(f'imgs/scatter_by_wells/{n_wells}_wells/positive_{n_wells}_well_correlations.png', 
-#                        dpi=300, bbox_inches='tight')
-#             plt.show()
 
 # shade + summary
 def create_comprehensive_correlation_scatter_plots_from_existing(df_all, correlations_by_well_count, min_correlation, 
@@ -1595,9 +1462,12 @@ def create_comprehensive_correlation_scatter_plots_from_existing(df_all, correla
     print(f"  Total negative correlations: {total_negative}")
     print(f"  Grand total: {total_positive + total_negative}")
 #pair plot
-def create_advanced_well_pairplots_by_group(df_all, variable_groups, min_samples_per_well=5, sample_size=1000):
+
+
+def create_advanced_well_pairplots_by_group(df_all, variable_groups, common_correlations, 
+                                           min_samples_per_well=5, sample_size=1000):
     """
-    Create advanced pairplots for each variable group.
+    Create advanced pairplots for each variable group, integrated with common correlations.
     
     Parameters:
     -----------
@@ -1605,6 +1475,8 @@ def create_advanced_well_pairplots_by_group(df_all, variable_groups, min_samples
         Combined dataframe with all wells' data
     variable_groups : dict
         Dictionary of variable groups, each with 'logs' and 'labs' lists
+    common_correlations : DataFrame
+        DataFrame from find_common_correlations containing analyzed correlations
     min_samples_per_well : int
         Minimum samples required for a well to be included in a correlation
     sample_size : int
@@ -1612,11 +1484,26 @@ def create_advanced_well_pairplots_by_group(df_all, variable_groups, min_samples
     """
     print("\nCreating advanced multi-well pairplots by variable group...")
     
+    # First, populate the Top_Correlations group with actual top correlations
+    if "Top_Correlations" in variable_groups and common_correlations is not None and not common_correlations.empty:
+        # Get top 10 correlations by average absolute correlation
+        top_corrs = common_correlations.nlargest(10, 'avg_abs_r')
+        
+        # Extract unique variables
+        top_logs = list(set(top_corrs['log_var'].tolist()))
+        top_labs = list(set(top_corrs['lab_var'].tolist()))
+        
+        # Update the group
+        variable_groups["Top_Correlations"]["logs"] = top_logs[:5]  # Limit to 5 for readability
+        variable_groups["Top_Correlations"]["labs"] = top_labs[:5]
+        
+        print(f"Populated Top_Correlations with {len(top_logs)} log vars and {len(top_labs)} lab vars")
+    
     for group_name, group_info in variable_groups.items():
         print(f"\nProcessing group: {group_name}")
         
-        # Skip Top_Correlations if empty
-        if group_name == "Top_Correlations" and (not group_info['logs'] or not group_info['labs']):
+        # Skip if empty
+        if not group_info['logs'] and not group_info['labs']:
             print(f"  Skipping {group_name}: No variables defined")
             continue
         
@@ -1632,11 +1519,12 @@ def create_advanced_well_pairplots_by_group(df_all, variable_groups, min_samples
         print(f"  Creating pairplot with {len(available_vars)} variables: " + 
               ", ".join([v.replace('Log_', '').replace('Lab_', '') for v in available_vars]))
         
-        # Create the advanced pairplot
+        # Create the advanced pairplot with common correlations integration
         try:
-            fig = create_advanced_well_pairplot(
+            fig = create_advanced_well_pairplot_integrated(
                 df_all, 
-                available_vars, 
+                available_vars,
+                common_correlations,
                 min_samples_per_well=min_samples_per_well,
                 sample_size=sample_size,
                 filename=f"advanced_pairplot_{group_name.lower()}"
@@ -1654,48 +1542,40 @@ def create_advanced_well_pairplots_by_group(df_all, variable_groups, min_samples
             
         except Exception as e:
             print(f"  Error creating pairplot for {group_name}: {e}")
-            
+            import traceback
+            traceback.print_exc()
 
-def create_advanced_well_pairplot(df_all, variables_to_plot, min_samples_per_well=5, sample_size=1000, 
-                                 save_path='imgs/', filename=None):
+
+def create_advanced_well_pairplot_integrated(df_all, variables_to_plot, common_correlations,
+                                           min_samples_per_well=5, sample_size=1000, 
+                                           save_path='imgs/', filename=None):
     """
-    Create an advanced pairplot for multi-well analysis with:
-    - Histograms on diagonal (colored by well)
-    - Scatter plots in upper triangle (colored by well with regression lines)
-    - Correlation heatmap in lower triangle
-    
-    Parameters:
-    -----------
-    df_all : DataFrame
-        Combined dataframe with all wells' data
-    variables_to_plot : list
-        List of variables to include in the pairplot
-    min_samples_per_well : int
-        Minimum samples required for a well to be included in a correlation
-    sample_size : int
-        Maximum number of samples to use (for performance)
-    save_path : str
-        Directory to save the plot
-    filename : str, optional
-        Custom filename for the plot (without extension)
-        
-    Returns:
-    --------
-    fig : matplotlib Figure object
+    Create an advanced pairplot that integrates with common_correlations analysis.
+    Shows the actual correlation values from the multi-well analysis.
     """
     import seaborn as sns
     import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
-    from scipy.stats import pearsonr
     
-    # Create variable friendly names (for display)
+    # Create lookup for common correlations
+    corr_lookup = {}
+    if common_correlations is not None and not common_correlations.empty:
+        for _, row in common_correlations.iterrows():
+            key = (row['log_var'], row['lab_var'])
+            corr_lookup[key] = {
+                'avg_r': row['avg_r'],
+                'num_wells': row['num_wells'],
+                'wells': row['wells_found_in'],
+                'consistent': row['consistent_direction']
+            }
+    
+    # Create variable friendly names
     var_friendly_names = {var: var.replace('Log_', '').replace('Lab_', '') for var in variables_to_plot}
     
-    # Sample data if too large (but maintain well representation)
+    # Sample data if needed
     wells = df_all['Well'].unique()
     if len(df_all) > sample_size:
-        # Sample proportionally from each well
         sampled_data = []
         for well in wells:
             well_data = df_all[df_all['Well'] == well]
@@ -1708,7 +1588,7 @@ def create_advanced_well_pairplot(df_all, variables_to_plot, min_samples_per_wel
     else:
         df_plot = df_all.copy()
     
-    # Define well colors (consistent with other visualizations)
+    # Define well colors
     well_colors = {
         'HRDH_697': '#1f77b4',
         'HRDH_1119': '#d62728', 
@@ -1716,32 +1596,16 @@ def create_advanced_well_pairplot(df_all, variables_to_plot, min_samples_per_wel
         'HRDH_1867': '#ff7f0e'
     }
     
-    # Create the grid of subplots (n×n for n variables)
+    # Create the grid
     n_vars = len(variables_to_plot)
-    fig, axes = plt.subplots(n_vars, n_vars, figsize=(2*n_vars, 2*n_vars))
+    fig, axes = plt.subplots(n_vars, n_vars, figsize=(2.5*n_vars, 2.5*n_vars))
     
-    # Adjust for single variable case
     if n_vars == 1:
         axes = np.array([[axes]])
-    
-    # Calculate all correlations for each variable pair
-    correlations = {}
-    for i, var1 in enumerate(variables_to_plot):
-        for j, var2 in enumerate(variables_to_plot):
-            if i != j:  # Skip self-correlations
-                # Calculate correlation using all data
-                valid_data = df_all[[var1, var2]].dropna()
-                if len(valid_data) >= min_samples_per_well * 2:
-                    try:
-                        r, p = pearsonr(valid_data[var1], valid_data[var2])
-                        correlations[(var1, var2)] = (r, p, len(valid_data))
-                    except:
-                        correlations[(var1, var2)] = (np.nan, np.nan, 0)
     
     # Create histograms on diagonal
     for i, var in enumerate(variables_to_plot):
         ax = axes[i, i]
-        # Create separate histograms for each well
         for well in wells:
             well_data = df_plot[df_plot['Well'] == well]
             if len(well_data) > 0:
@@ -1749,30 +1613,38 @@ def create_advanced_well_pairplot(df_all, variables_to_plot, min_samples_per_wel
                            ax=ax, 
                            color=well_colors[well], 
                            alpha=0.5,
-                           label=well)
+                           label=well.replace('HRDH_', ''))
         
-        # Set labels
         ax.set_xlabel(var_friendly_names[var])
         ax.set_ylabel('Count')
         
-        # Only show legend for the first diagonal plot
         if i == 0:
             ax.legend(fontsize=8)
         
-        # Remove y-ticks for cleaner look
         ax.set_yticks([])
     
-    # Create scatter plots in upper triangle, correlation info in lower
+    # Create plots for off-diagonal
     for i in range(n_vars):
         for j in range(n_vars):
-            if i != j:  # Skip diagonal
+            if i != j:
                 var1 = variables_to_plot[j]  # x-axis
                 var2 = variables_to_plot[i]  # y-axis
                 ax = axes[i, j]
                 
                 if i < j:  # Upper triangle - scatter plots
-                    # Plot each well with different color
-                    for well in wells:
+                    # Check if this correlation exists in common_correlations
+                    corr_info = corr_lookup.get((var1, var2)) or corr_lookup.get((var2, var1))
+                    
+                    if corr_info:
+                        # Only plot wells that have this correlation
+                        wells_to_plot = corr_info['wells']
+                        title_suffix = f" ({corr_info['num_wells']}w)"
+                    else:
+                        wells_to_plot = wells
+                        title_suffix = ""
+                    
+                    # Plot each well
+                    for well in wells_to_plot:
                         well_data = df_plot[df_plot['Well'] == well]
                         valid_data = well_data[[var1, var2]].dropna()
                         
@@ -1780,105 +1652,345 @@ def create_advanced_well_pairplot(df_all, variables_to_plot, min_samples_per_wel
                             ax.scatter(valid_data[var1], valid_data[var2], 
                                      color=well_colors[well], 
                                      alpha=0.7, s=20, 
-                                     label=well)
-                            
-                            # Add regression line for each well if enough points
-                            if len(valid_data) >= min_samples_per_well:
-                                try:
-                                    x = valid_data[var1]
-                                    y = valid_data[var2]
-                                    
-                                    # Fit line
-                                    z = np.polyfit(x, y, 1)
-                                    p = np.poly1d(z)
-                                    
-                                    # Plot line
-                                    x_line = np.linspace(x.min(), x.max(), 100)
-                                    ax.plot(x_line, p(x_line), color=well_colors[well], 
-                                           linestyle='--', alpha=0.7, linewidth=1)
-                                except Exception as e:
-                                    pass
+                                     label=well.replace('HRDH_', ''))
                     
-                    # Set labels
+                    # Add combined regression line if correlation exists
+                    if corr_info:
+                        # Get all data from wells with this correlation
+                        mask = df_plot['Well'].isin(wells_to_plot)
+                        combined_data = df_plot[mask][[var1, var2]].dropna()
+                        
+                        if len(combined_data) > 5:
+                            x = combined_data[var1]
+                            y = combined_data[var2]
+                            
+                            # Fit line
+                            z = np.polyfit(x, y, 1)
+                            p = np.poly1d(z)
+                            
+                            # Plot line
+                            x_line = np.linspace(x.min(), x.max(), 100)
+                            color = 'darkgreen' if corr_info['avg_r'] > 0 else 'darkred'
+                            ax.plot(x_line, p(x_line), color=color, 
+                                   linestyle='-', alpha=0.8, linewidth=2)
+                    
                     ax.set_xlabel(var_friendly_names[var1])
                     ax.set_ylabel(var_friendly_names[var2])
-                    
-                    # Add grid
                     ax.grid(True, linestyle=':', alpha=0.3)
                 
-                else:  # Lower triangle - correlation heatmap
-                    # Clear the axis for heatmap
+                else:  # Lower triangle - correlation info
                     ax.clear()
                     
-                    # Get correlation if available
-                    if (var1, var2) in correlations:
-                        r, p, n = correlations[(var1, var2)]
-                    else:
-                        r, p, n = np.nan, np.nan, 0
+                    # Get correlation from common_correlations
+                    corr_info = corr_lookup.get((var1, var2)) or corr_lookup.get((var2, var1))
                     
-                    # Add correlation as a color-coded cell
-                    if not np.isnan(r):
-                        # Create a single-cell "heatmap"
-                        # Color based on correlation strength and direction
-                        if r > 0:
-                            color = plt.cm.Greens(0.5 + r/2)  # Map [0,1] to [0.5,1] in colormap
-                        else:
-                            color = plt.cm.Reds(0.5 - r/2)    # Map [-1,0] to [1,0.5] in colormap
+                    if corr_info:
+                        r = corr_info['avg_r']
+                        n_wells = corr_info['num_wells']
                         
-                        # Fill the entire axis with this color
+                        # Color based on correlation
+                        if r > 0:
+                            color = plt.cm.Greens(0.5 + r/2)
+                        else:
+                            color = plt.cm.Reds(0.5 - r/2)
+                        
+                        # Fill with color
                         ax.add_patch(plt.Rectangle((0, 0), 1, 1, transform=ax.transAxes, 
                                                  color=color, alpha=0.7))
                         
-                        # Add correlation text
-                        sig_stars = ''
-                        if p < 0.001:
-                            sig_stars = '***'
-                        elif p < 0.01:
-                            sig_stars = '**'
-                        elif p < 0.05:
-                            sig_stars = '*'
-                        
-                        # Show correlation value and significance stars
-                        ax.text(0.5, 0.5, f'r = {r:.2f}{sig_stars}', 
+                        # Add text
+                        consistency = "✓" if corr_info['consistent'] else "✗"
+                        ax.text(0.5, 0.5, f'r = {r:.2f}', 
                                transform=ax.transAxes,
                                ha='center', va='center', 
-                               fontsize=10, fontweight='bold',
+                               fontsize=11, fontweight='bold',
                                color='black' if abs(r) < 0.7 else 'white')
                         
-                        # Add sample size
-                        ax.text(0.5, 0.25, f'n = {n}', 
+                        ax.text(0.5, 0.25, f'{n_wells} wells {consistency}', 
                                transform=ax.transAxes,
                                ha='center', va='center', 
-                               fontsize=8,
+                               fontsize=9,
                                color='black' if abs(r) < 0.7 else 'white')
+                    else:
+                        # No common correlation found
+                        ax.text(0.5, 0.5, 'No common\ncorrelation', 
+                               transform=ax.transAxes,
+                               ha='center', va='center', 
+                               fontsize=9, color='gray')
                     
-                    # Remove ticks and spines for clean look
                     ax.set_xticks([])
                     ax.set_yticks([])
                     for spine in ax.spines.values():
                         spine.set_visible(False)
     
-    # Add a title explaining significance
+    # Add legend
     plt.figtext(0.5, 0.01, 
-               "* p<0.05, ** p<0.01, *** p<0.001", 
+               "✓ = consistent direction across wells, ✗ = inconsistent direction", 
                ha='center', fontsize=10)
     
-    # Add an overall title
-    fig.suptitle("Multi-Well Correlation Analysis", fontsize=16, y=0.98)
+    # Title
+    fig.suptitle("Multi-Well Correlation Analysis (Integrated with Common Correlations)", 
+                fontsize=16, y=0.98)
     
-    # Adjust spacing
     plt.tight_layout()
     plt.subplots_adjust(top=0.95, bottom=0.05)
     
-    # Save the plot
+    # Save
     if filename is None:
-        # Create a filename based on the variables
         var_names = [var_friendly_names[v] for v in variables_to_plot]
-        filename = f"advanced_pairplot_{'_'.join(var_names[:3])}"
+        filename = f"advanced_pairplot_integrated_{'_'.join(var_names[:3])}"
         if len(var_names) > 3:
             filename += "_etc"
     
     plt.savefig(f"{save_path}/{filename}.png", dpi=300, bbox_inches='tight')
     
-    # Return the figure
+    return fig
+
+def create_advanced_well_pairplot_integrated_v2(df_all, variables_to_plot, common_correlations,
+                                              min_samples_per_well=5, sample_size=1000, 
+                                              save_path='imgs/', filename=None):
+    """
+    Enhanced version that shows all correlations, not just those in common_correlations.
+    Calculates correlations on the fly for pairs not in common_correlations.
+    """
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import pandas as pd
+    from scipy import stats
+    
+    # Create lookup for common correlations
+    corr_lookup = {}
+    if common_correlations is not None and not common_correlations.empty:
+        for _, row in common_correlations.iterrows():
+            key = (row['log_var'], row['lab_var'])
+            corr_lookup[key] = {
+                'avg_r': row['avg_r'],
+                'num_wells': row['num_wells'],
+                'wells': row['wells_found_in'],
+                'consistent': row['consistent_direction']
+            }
+    
+    # Create variable friendly names
+    var_friendly_names = {var: var.replace('Log_', '').replace('Lab_', '') for var in variables_to_plot}
+    
+    # Sample data if needed
+    wells = df_all['Well'].unique()
+    if len(df_all) > sample_size:
+        sampled_data = []
+        for well in wells:
+            well_data = df_all[df_all['Well'] == well]
+            well_sample_size = int(sample_size * (len(well_data) / len(df_all)))
+            if well_sample_size > 0:
+                sampled_data.append(well_data.sample(min(len(well_data), well_sample_size), random_state=42))
+        
+        df_plot = pd.concat(sampled_data)
+        print(f"Sampled {len(df_plot)} points from {len(df_all)} total")
+    else:
+        df_plot = df_all.copy()
+    
+    # Define well colors
+    well_colors = {
+        'HRDH_697': '#1f77b4',
+        'HRDH_1119': '#d62728', 
+        'HRDH_1804': '#2ca02c',
+        'HRDH_1867': '#ff7f0e'
+    }
+    
+    # Create the grid
+    n_vars = len(variables_to_plot)
+    fig, axes = plt.subplots(n_vars, n_vars, figsize=(2.5*n_vars, 2.5*n_vars))
+    
+    if n_vars == 1:
+        axes = np.array([[axes]])
+    elif n_vars == 2:
+        axes = np.array(axes).reshape(n_vars, n_vars)
+    
+    # Create plots
+    for i in range(n_vars):
+        for j in range(n_vars):
+            ax = axes[i, j]
+            var1 = variables_to_plot[j]  # x-axis
+            var2 = variables_to_plot[i]  # y-axis
+            
+            if i == j:  # Diagonal - histograms
+                for well in wells:
+                    well_data = df_plot[df_plot['Well'] == well]
+                    if len(well_data) > 0:
+                        well_vals = well_data[var1].dropna()
+                        if len(well_vals) > 0:
+                            sns.histplot(well_vals, 
+                                       ax=ax, 
+                                       color=well_colors[well], 
+                                       alpha=0.5,
+                                       label=well.replace('HRDH_', ''),
+                                       bins=20)
+                
+                ax.set_xlabel(var_friendly_names[var1], fontsize=10)
+                ax.set_ylabel('Count', fontsize=10)
+                
+                if i == 0 and j == 0:
+                    ax.legend(fontsize=8, loc='upper right')
+                
+                ax.set_yticks([])
+                
+            elif i < j:  # Upper triangle - scatter plots
+                # Plot all wells
+                for well in wells:
+                    well_data = df_plot[df_plot['Well'] == well]
+                    valid_data = well_data[[var1, var2]].dropna()
+                    
+                    if len(valid_data) > 0:
+                        ax.scatter(valid_data[var1], valid_data[var2], 
+                                 color=well_colors[well], 
+                                 alpha=0.7, s=20, 
+                                 label=well.replace('HRDH_', ''))
+                
+                # Add regression line for all data
+                all_data = df_plot[[var1, var2]].dropna()
+                if len(all_data) > 5:
+                    x = all_data[var1]
+                    y = all_data[var2]
+                    
+                    # Calculate correlation
+                    r, _ = stats.pearsonr(x, y)
+                    
+                    # Fit line
+                    z = np.polyfit(x, y, 1)
+                    p = np.poly1d(z)
+                    
+                    # Plot line
+                    x_line = np.linspace(x.min(), x.max(), 100)
+                    color = 'darkgreen' if r > 0 else 'darkred'
+                    ax.plot(x_line, p(x_line), color=color, 
+                           linestyle='-', alpha=0.8, linewidth=2)
+                
+                # Set labels for scatter plots
+                if i == 0:  # Top row
+                    ax.set_title(var_friendly_names[var1], fontsize=10)
+                if j == 0:  # Left column
+                    ax.set_ylabel(var_friendly_names[var2], fontsize=10)
+                if i == n_vars - 1:  # Bottom row of scatter plots
+                    ax.set_xlabel(var_friendly_names[var1], fontsize=10)
+                    
+                ax.grid(True, linestyle=':', alpha=0.3)
+                
+            else:  # Lower triangle - correlation info
+                ax.clear()
+                
+                # Get correlation from common_correlations
+                corr_info = corr_lookup.get((var1, var2)) or corr_lookup.get((var2, var1))
+                
+                if corr_info:
+                    # Use existing correlation info from common_correlations
+                    r = corr_info['avg_r']
+                    n_wells = corr_info['num_wells']
+                    
+                    # Color based on correlation
+                    if r > 0:
+                        color = plt.cm.Greens(0.5 + r/2)
+                    else:
+                        color = plt.cm.Reds(0.5 - r/2)
+                    
+                    # Fill with color
+                    ax.add_patch(plt.Rectangle((0, 0), 1, 1, transform=ax.transAxes, 
+                                             color=color, alpha=0.7))
+                    
+                    # Add text
+                    consistency = "✓" if corr_info['consistent'] else "✗"
+                    ax.text(0.5, 0.5, f'r = {r:.2f}', 
+                           transform=ax.transAxes,
+                           ha='center', va='center', 
+                           fontsize=11, fontweight='bold',
+                           color='black' if abs(r) < 0.7 else 'white')
+                    
+                    ax.text(0.5, 0.25, f'{n_wells} wells {consistency}', 
+                           transform=ax.transAxes,
+                           ha='center', va='center', 
+                           fontsize=9,
+                           color='black' if abs(r) < 0.7 else 'white')
+                else:
+                    # Calculate correlation for all data since it's not in common_correlations
+                    valid_data = df_plot[[var1, var2]].dropna()
+                    
+                    if len(valid_data) >= 10:
+                        r, p_value = stats.pearsonr(valid_data[var1], valid_data[var2])
+                        
+                        # Color based on correlation strength
+                        if abs(r) < 0.3:
+                            color = 'lightgray'
+                        elif r > 0:
+                            color = plt.cm.Greens(0.3 + r/2)
+                        else:
+                            color = plt.cm.Reds(0.3 - r/2)
+                        
+                        # Fill with color
+                        ax.add_patch(plt.Rectangle((0, 0), 1, 1, transform=ax.transAxes, 
+                                                 color=color, alpha=0.5))
+                        
+                        # Add text
+                        ax.text(0.5, 0.5, f'r = {r:.2f}', 
+                               transform=ax.transAxes,
+                               ha='center', va='center', 
+                               fontsize=11,
+                               color='black' if abs(r) < 0.5 else 'white')
+                        
+                        # Check how many wells have sufficient data for this pair
+                        wells_with_data = 0
+                        for well in wells:
+                            well_data = df_all[df_all['Well'] == well][[var1, var2]].dropna()
+                            if len(well_data) >= min_samples_per_well:
+                                wells_with_data += 1
+                        
+                        ax.text(0.5, 0.25, f'(all data)\nn={len(valid_data)}\n{wells_with_data} wells', 
+                               transform=ax.transAxes,
+                               ha='center', va='center', 
+                               fontsize=8,
+                               color='gray')
+                    else:
+                        # Not enough data
+                        ax.text(0.5, 0.5, 'Insufficient\ndata', 
+                               transform=ax.transAxes,
+                               ha='center', va='center', 
+                               fontsize=9, color='gray')
+                
+                # Set labels for correlation boxes
+                if j == 0:  # Left column
+                    ax.set_ylabel(var_friendly_names[var2], fontsize=10)
+                if i == n_vars - 1:  # Bottom row
+                    ax.set_xlabel(var_friendly_names[var1], fontsize=10)
+                
+                ax.set_xticks([])
+                ax.set_yticks([])
+                for spine in ax.spines.values():
+                    spine.set_visible(False)
+    
+    # Adjust spacing and add legend
+    plt.tight_layout()
+    
+    # Add legend at the bottom with proper formatting
+    legend_text = ("✓ = consistent direction across wells, ✗ = inconsistent direction\n" +
+                   "Gray boxes show correlations calculated from all data (not in common_correlations)")
+    fig.text(0.5, 0.01, legend_text, 
+             ha='center', fontsize=10, 
+             bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=0.8))
+    
+    # Title
+    fig.suptitle("Multi-Well Correlation Analysis (All Correlations)", 
+                fontsize=16, y=0.99)
+    
+    plt.subplots_adjust(top=0.96, bottom=0.08, hspace=0.15, wspace=0.15)
+    
+    # Save
+    if filename is None:
+        var_names = [var_friendly_names[v] for v in variables_to_plot]
+        filename = f"advanced_pairplot_all_correlations_{'_'.join(var_names[:3])}"
+        if len(var_names) > 3:
+            filename += "_etc"
+    
+    save_path = Path(save_path)
+    save_path.mkdir(exist_ok=True)
+    plt.savefig(save_path / f"{filename}.png", dpi=300, bbox_inches='tight')
+    plt.show()
+    
     return fig
