@@ -461,14 +461,14 @@ def calculate_correlations_by_well(df_all, lab_columns, log_columns, min_samples
         
         # Print summary
         print(f"\n{well}:")
-        print(f"  Total samples: {len(well_data):,}")
-        print(f"  Valid correlations: {valid_pairs}/{total_pairs} ({well_correlation_stats[well]['coverage']:.1f}%)")
+        print(f"Total samples: {len(well_data):,}")
+        print(f"Valid correlations: {valid_pairs}/{total_pairs} ({well_correlation_stats[well]['coverage']:.1f}%)")
         if len(valid_correlations) > 0:
-            print(f"  Mean |r|: {well_correlation_stats[well]['mean_abs_correlation']:.3f}")
-            print(f"  Strong correlations (|r| ≥ 0.7): {well_correlation_stats[well]['strong_correlations']}")
-            print(f"  Moderate correlations (0.5 ≤ |r| < 0.7): {well_correlation_stats[well]['moderate_correlations']}")
+            print(f"Mean |r|: {well_correlation_stats[well]['mean_abs_correlation']:.3f}")
+            print(f"Strong correlations (|r| ≥ 0.7): {well_correlation_stats[well]['strong_correlations']}")
+            print(f"Moderate correlations (0.5 ≤ |r| < 0.7): {well_correlation_stats[well]['moderate_correlations']}")
         else:
-            print(f"  ⚠️ No valid correlations found (insufficient overlapping data)")
+            print(f"No valid correlations found (insufficient overlapping data)")
     
     # Add a warning summary
     print("\n" + "="*80)
@@ -479,10 +479,10 @@ def calculate_correlations_by_well(df_all, lab_columns, log_columns, min_samples
                         if stats['coverage'] < 10]
     
     if wells_with_issues:
-        print(f"\n⚠️ Wells with very low coverage (<10%):")
+        print(f"\n Wells with very low coverage (<10%):")
         for well in wells_with_issues:
             print(f"  - {well}: {well_correlation_stats[well]['coverage']:.1f}% coverage, "
-                  f"{well_correlation_stats[well]['valid_pairs']} valid pairs")
+                f"{well_correlation_stats[well]['valid_pairs']} valid pairs")
             
             # Diagnose why
             well_data = df_all[df_all['Well'] == well]
@@ -669,7 +669,7 @@ def print_categorized_correlation_summary(correlations_by_well_count, report_dat
     total_correlations = sum(len(corrs) for corrs in correlations_by_well_count.values())
     
     # Overall summary
-    print(f"\n 📊 OVERALL SUMMARY")
+    print(f"\n  OVERALL SUMMARY")
     print("-"*80)
     print(f"Total unique correlation pairs found: {total_correlations}")
     
@@ -761,7 +761,7 @@ def print_categorized_correlation_summary(correlations_by_well_count, report_dat
         consistent_count = sum(1 for _, _, info in correlations if info['consistent_direction'])
         significant_count = sum(1 for _, _, info in correlations if info.get('significant_ratio', 0) >= 0.5)
         
-        print(f"\n📊 Category Statistics:")
+        print(f"\n Category Statistics:")
         print(f"  Total pairs: {len(correlations)}")
         print(f"  Positive correlations: {positive_count} ({positive_count/len(correlations)*100:.1f}%)")
         print(f"  Negative correlations: {negative_count} ({negative_count/len(correlations)*100:.1f}%)")
@@ -816,10 +816,10 @@ def print_categorized_correlation_summary(correlations_by_well_count, report_dat
             print(f"      Wells: {', '.join(well_details)}")
             
             if not info['consistent_direction']:
-                print(f"      ⚠️  Mixed correlation signs across wells")
+                print(f"        Mixed correlation signs across wells")
             
             if info['significant_ratio'] < 0.5:
-                print(f"      ⚠️  Low significance ratio: {info['significant_ratio']:.2f}")
+                print(f"        Low significance ratio: {info['significant_ratio']:.2f}")
     
     # Export comprehensive report if path provided
     if export_path:
@@ -848,7 +848,7 @@ def print_categorized_correlation_summary(correlations_by_well_count, report_dat
               f"|r̄| = {info['avg_abs_corr']:.3f} ({n_wells} wells, {info['strength_category']})")
     
     # Add new visualization summary
-    print(f"\n📊 VISUALIZATION SUMMARY:")
+    print(f"\n VISUALIZATION SUMMARY:")
     print("-" * 80)
     print("Common correlations (≥2 wells) are visualized in:")
     print("  • Correlation coverage heatmap: imgs/correlation_coverage_heatmap.png")
@@ -1558,8 +1558,8 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
     plt.savefig('imgs/heatmap_combined_correlations_improved.png', dpi=300, bbox_inches='tight')
     plt.show()
     
-    # --- Figure 3: Strong correlations only with emphasis ---
-    fig3, ax3 = plt.subplots(figsize=(18, 14))  # Increased height for legend
+    # --- Figure 2: Strong correlations only with emphasis ---
+    fig2, ax2 = plt.subplots(figsize=(18, 14))  # Increased height for legend
     
     # Create mask for weak correlations
     strong_threshold = 0.5
@@ -1596,24 +1596,24 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
         linecolor='white',
         square=True,
         mask=mask_weak,
-        ax=ax3
+        ax=ax2
     )
     
     # Improve title and labels
-    ax3.set_title(f'Strong Combined Correlations Only (|r| ≥ 0.5)\n' +
+    ax2.set_title(f'Strong Combined Correlations Only (|r| ≥ 0.5)\n' +
                   f'Pearson correlation coefficient with number of wells (≥{min_samples} samples per well)', 
                   fontsize=16, fontweight='bold', pad=20)
-    ax3.set_xlabel('Laboratory Measurements', fontsize=13, fontweight='bold')
-    ax3.set_ylabel('Geophysical Log Measurements', fontsize=13, fontweight='bold')
+    ax2.set_xlabel('Laboratory Measurements', fontsize=13, fontweight='bold')
+    ax2.set_ylabel('Geophysical Log Measurements', fontsize=13, fontweight='bold')
     
     # Clean tick labels
-    ax3.set_xticklabels([col.replace('Lab_', '') for col in combined_corr_matrix.columns], 
+    ax2.set_xticklabels([col.replace('Lab_', '') for col in combined_corr_matrix.columns], 
                         rotation=45, ha='right', fontsize=10)
-    ax3.set_yticklabels([row.replace('Log_', '') for row in combined_corr_matrix.index], 
+    ax2.set_yticklabels([row.replace('Log_', '') for row in combined_corr_matrix.index], 
                         rotation=0, fontsize=10)
     
     # Add grid for better readability
-    ax3.set_facecolor('#f8f8f8')
+    ax2.set_facecolor('#f8f8f8')
     
     # Add LOG_DESCRIPTIONS legend in top left for strong correlations plot too
     legend_text = "Log Descriptions:\n" + "-"*50 + "\n"
@@ -1636,7 +1636,7 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
     print("COMBINED CORRELATION ANALYSIS - IMPROVED SUMMARY")
     print("="*80)
     
-    print("\n📊 CORRELATION STRENGTH DISTRIBUTION:")
+    print("\n CORRELATION STRENGTH DISTRIBUTION:")
     print("-" * 60)
     total_valid = (~pd.isna(combined_corr_matrix)).sum().sum()
     for threshold, label in [(0.7, "Very Strong"), (0.5, "Strong"), (0.3, "Moderate")]:
@@ -1956,5 +1956,5 @@ def create_grouped_pairplots(df_all, variable_groups, sample_size=1500):
                 plt.close(g.fig)
                 
         except Exception as e:
-            print(f"   ⚠️ Error creating pairplot for {group_name}: {e}")
+            print(f"    Error creating pairplot for {group_name}: {e}")
 

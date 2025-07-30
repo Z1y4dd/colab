@@ -57,7 +57,7 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
             vprint(f" Warning: File extension '{path.suffix}' is not typical for DLIS files")
             
         file_size_mb = path.stat().st_size / (1024 * 1024)
-        vprint(f"✅ File found: {path.name}")
+        vprint(f"File found: {path.name}")
         vprint(f"Size: {file_size_mb:.1f} MB")
         vprint(f"Path: {path}")
         
@@ -72,7 +72,7 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
     try:
         # Load DLIS file
         files = dlis.load(str(path))
-        vprint(f"✅ DLIS file loaded successfully")
+        vprint(f"DLIS file loaded successfully")
         vprint(f"Number of logical files: {len(files)}")
         
         if len(files) == 0:
@@ -93,7 +93,7 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
     
     try:
         frames = logical_file.frames
-        vprint(f"✅ Found {len(frames)} frame(s)")
+        vprint(f"Found {len(frames)} frame(s)")
         
         if len(frames) == 0:
             raise ValueError("No frames found in logical file")
@@ -110,7 +110,7 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
             
         selected_frame = frames[frame_index]
         frame_name = selected_frame.name if hasattr(selected_frame, 'name') else f"Frame_{frame_index}"
-        vprint(f"✅ Selected frame {frame_index}: {frame_name}")
+        vprint(f"Selected frame {frame_index}: {frame_name}")
         
     except Exception as e:
         vprint(f" Frame validation failed: {e}")
@@ -127,7 +127,7 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
         # Add dictionary to store channel descriptions
         channel_descriptions = {}
         
-        vprint(f"✅ Found {len(channel_names)} channels:")
+        vprint(f"Found {len(channel_names)} channels:")
         
         # Show channel details
         for i, (ch, name) in enumerate(zip(channels, channel_names)):
@@ -151,7 +151,7 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
                 break
                 
         if found_depth:
-            vprint(f"✅ Depth channel found: {found_depth}")
+            vprint(f"Depth channel found: {found_depth}")
         else:
             vprint(f" No standard depth channel found. Available: {channel_names[:5]}...")
         
@@ -174,7 +174,7 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
     try:
         # Get curves data
         curves_data = selected_frame.curves()
-        vprint(f"✅ Curves data extracted")
+        vprint(f"Curves data extracted")
         vprint(f"Data type: {type(curves_data)}")
         vprint(f"Shape: {curves_data.shape}")
         vprint(f"Dtype: {curves_data.dtype}")
@@ -186,7 +186,7 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
             return pd.DataFrame()
             
         field_names = curves_data.dtype.names
-        vprint(f"✅ Found {len(field_names)} data fields")
+        vprint(f"Found {len(field_names)} data fields")
         
     except Exception as e:
         vprint(f" Data extraction failed: {e}")
@@ -240,7 +240,7 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
             # Store valid data
             field_to_channel[field] = simple_name
             data_dict[simple_name] = array
-            vprint(f"   ✅ {simple_name}: {len(array)} samples")
+            vprint(f"   {simple_name}: {len(array)} samples")
             
         except Exception as e:
             vprint(f"    Error processing {field}: {e}")
@@ -273,13 +273,13 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
             
         # Create DataFrame
         df = pd.DataFrame(data_dict)
-        vprint(f"✅ DataFrame created: {df.shape}")
+        vprint(f"DataFrame created: {df.shape}")
         
         # Set depth as index
         depth_channel = found_depth if found_depth and found_depth in df.columns else None
         if depth_channel:
             df = df.set_index(depth_channel)
-            vprint(f"✅ Set {depth_channel} as index")
+            vprint(f"Set {depth_channel} as index")
             vprint(f"Depth range: {df.index.min():.2f} - {df.index.max():.2f}")
         else:
             vprint(f" No depth channel found in extracted data")
@@ -291,14 +291,14 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
             
             if available_cols:
                 df = df[available_cols]
-                vprint(f"✅ Filtered to {len(available_cols)} requested columns")
+                vprint(f"Filtered to {len(available_cols)} requested columns")
             else:
                 vprint(f" None of requested columns found: {needed}")
                 
             if missing_cols:
                 vprint(f" Missing requested columns: {missing_cols}")
                 
-        vprint(f"✅ Final DataFrame: {df.shape}")
+        vprint(f"Final DataFrame: {df.shape}")
         return df
         
     except Exception as e:
@@ -314,7 +314,7 @@ def dlis_to_df(path, needed=None, frame_index=0, verbose=True):
             print(" Failed to load DLIS data")
             return df
             
-        print(f"\n✅ FINAL VALIDATION:")
+        print(f"\nFINAL VALIDATION:")
         print(f"Shape: {df.shape}")
         print(f"Columns: {list(df.columns)}")
         print(f"Index: {df.index.name}")
@@ -381,7 +381,7 @@ def load_dlis_files_from_list(
                 if path_obj.suffix.lower() in ['.dlis', '.dls']:
                     valid_paths.append(str(path_obj))
                     size_mb = path_obj.stat().st_size / (1024 * 1024)
-                    vprint(f"✅ {i+1:2d}. {path_obj.name} ({size_mb:.1f} MB)")
+                    vprint(f"{i+1:2d}. {path_obj.name} ({size_mb:.1f} MB)")
                 else:
                     invalid_paths.append((path, f"Invalid extension: {path_obj.suffix}"))
                     vprint(f" {i+1:2d}. {path_obj.name} - Invalid extension")
@@ -442,7 +442,7 @@ def load_dlis_files_from_list(
                 }
                 load_metadata.append(file_meta)
                 
-                vprint(f"✅ Success: {df.shape[0]} samples × {df.shape[1]} channels")
+                vprint(f"Success: {df.shape[0]} samples × {df.shape[1]} channels")
                 vprint(f"   Depth range: {df.index.min():.1f} - {df.index.max():.1f}")
                 vprint(f"   Memory: {file_meta['memory_mb']:.1f} MB")
             else:
@@ -504,7 +504,7 @@ def load_dlis_files_from_list(
             
             # Final statistics
             total_memory = combined_df.memory_usage(deep=True).sum() / 1024**2
-            vprint(f"\n✅ CONCATENATION COMPLETE:")
+            vprint(f"\nCONCATENATION COMPLETE:")
             vprint(f"Final shape: {combined_df.shape}")
             vprint(f"Depth range: {combined_df.index.min():.1f} - {combined_df.index.max():.1f}")
             vprint(f"Total memory: {total_memory:.1f} MB")
@@ -651,7 +651,7 @@ def match_lab_to_log(log_df, lab_df, tol=0.1):
     joined_df['Match_Type'] = np.where(joined_df['Distance'] == 0, 'Exact', 'Near')
     
     # VERIFICATION: Show actual matches
-    # print(f"\n✅ FINAL VERIFICATION - First 5 matches:")
+    # print(f"\nFINAL VERIFICATION - First 5 matches:")
     # for i in range(min(5, len(joined_df))):
     #     row = joined_df.iloc[i]
     #     print(f"   Lab: {row['Lab_Depth']:.2f} → Log: {row['Log_Depth']:.2f} (Δ{row['Distance']:.2f} ft)")
@@ -701,7 +701,7 @@ def create_log_summary(log_df):
     
 
     
-    print("\n✅ DATA QUALITY:")
+    print("\nDATA QUALITY:")
     print(f"Overall completeness: {avg_completeness:.1f}%")
     print(f"Best curve: {max_complete_curve} ({max_completeness:.1f}% complete)")
     print(f"Worst curve: {min_complete_curve} ({min_completeness:.1f}% complete)")
