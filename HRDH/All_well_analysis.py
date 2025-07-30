@@ -556,8 +556,8 @@ LOG_DESCRIPTIONS = {
     'SLTM': 'Delta Elapsed Time',
     'ZDNC': 'Borehole Size/Mud Weight Corrected Density'
 }
-
-def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_correlations, min_samples=8):
+#combined r
+def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_correlations, min_samples=8, common_correlations=None):
     """
     Create heatmaps showing correlations calculated from combined data across all wells.
     
@@ -573,18 +573,14 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
         Dictionary with correlation matrices for each well (used for comparison)
     min_samples : int
         Minimum number of samples required per well for correlation calculation
+    common_correlations : DataFrame, optional
+        DataFrame from find_common_correlations to ensure consistent well counts
         
     Returns:
     --------
     tuple:
         - combined_corr_matrix: DataFrame with combined correlations
         - sample_size_matrix: DataFrame with sample sizes for each pair
-    
-    Notes:
-    ------
-    "Combined" means all data points from all wells are pooled together into a single
-    correlation calculation, rather than averaging the individual well correlations.
-    This approach gives more weight to wells with more data points.
     """
     
     # Calculate combined correlations (pooling all data)
@@ -593,6 +589,13 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
     
     # Track which wells have sufficient data for each pair
     wells_with_data_matrix = pd.DataFrame(index=log_columns, columns=lab_columns, dtype=object)
+    
+    # NEW: Create a lookup for well counts from common_correlations
+    well_count_lookup = {}
+    if common_correlations is not None:
+        for _, row in common_correlations.iterrows():
+            key = (row['log_var'], row['lab_var'])
+            well_count_lookup[key] = row['num_wells']
     
     for log_var in log_columns:
         for lab_var in lab_columns:
@@ -634,10 +637,24 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
             wells_list = wells_with_data_matrix.iloc[i, j]
             
             if pd.notna(r) and n > 0:
-                n_wells = len(wells_list)
-                # annot_text[i, j] = f'{r:.2f}\n({n_wells}w, n={n})'
+                # NEW: Use well count from common_correlations if available
+                log_var = combined_corr_matrix.index[i]
+                lab_var = combined_corr_matrix.columns[j]
+                
+                if (log_var, lab_var) in well_count_lookup:
+                    n_wells = well_count_lookup[(log_var, lab_var)]
+                else:
+                    n_wells = len(wells_list)
+                
+                # Color-code the well count markers
+                if n_wells == 2:
+                    well_text_color = 'blue'
+                elif n_wells == 3:
+                    well_text_color = 'green'
+                else:  # 4 wells
+                    well_text_color = 'purple'
+                
                 annot_text[i, j] = f'{r:.2f}\n({n_wells}w)'
-
             else:
                 annot_text[i, j] = ''
     
@@ -661,14 +678,15 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
     
     # Improved title
     ax1.set_title('Log-Lab Correlations Across All Wells\n' + 
-                  f'Values show: correlation (number of wells, sample size)', 
+                  f'Values show: correlation (number of wells from common_correlations analysis)', 
                   fontsize=16, fontweight='bold', pad=20)
     ax1.set_xlabel('Laboratory Measurements', fontsize=13, fontweight='bold')
     ax1.set_ylabel('Geophysical Log Measurements', fontsize=13, fontweight='bold')
     
     # Add explanation of "combined"
     explanation = ("Note: 'Combined' means all data points from all wells are pooled together\n"
-                   "for a single correlation calculation, rather than averaging individual well correlations.")
+                   "for a single correlation calculation, rather than averaging individual well correlations.\n"
+                   "Well counts (2w, 3w, 4w) are from the common_correlations analysis.")
     plt.figtext(0.5, 0.01, explanation, ha='center', fontsize=10, 
                 bbox=dict(boxstyle='round', facecolor='white', alpha=0.9))
     
@@ -722,8 +740,15 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
             wells_list = wells_with_data_matrix.iloc[i, j]
             
             if pd.notna(r) and abs(r) >= strong_threshold and n > 0:
-                n_wells = len(wells_list)
-                # strong_annot_text[i, j] = f'{r:.2f}\n({n_wells}w, n={n})'
+                # NEW: Use well count from common_correlations if available
+                log_var = combined_corr_matrix.index[i]
+                lab_var = combined_corr_matrix.columns[j]
+                
+                if (log_var, lab_var) in well_count_lookup:
+                    n_wells = well_count_lookup[(log_var, lab_var)]
+                else:
+                    n_wells = len(wells_list)
+                    
                 strong_annot_text[i, j] = f'{r:.2f}\n({n_wells}w)'
             else:
                 strong_annot_text[i, j] = ''
@@ -748,7 +773,7 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
     
     # Improved title
     ax2.set_title(f'Strong Correlations Only (|r| ≥ {strong_threshold})\n' +
-                  f'Values show: correlation (number of wells)', 
+                  f'Values show: correlation (number of wells from common_correlations analysis)', 
                   fontsize=16, fontweight='bold', pad=20)
     ax2.set_xlabel('Laboratory Measurements', fontsize=13, fontweight='bold')
     ax2.set_ylabel('Geophysical Log Measurements', fontsize=13, fontweight='bold')
@@ -812,37 +837,240 @@ def create_combined_correlation_heatmap(df_all, lab_columns, log_columns, well_c
         print(f"Wells with sufficient data (≥{min_samples} samples): {len(wells_for_top)} wells")
     
     return combined_corr_matrix, sample_size_matrix
-
-def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_count, min_correlation, 
-                                                 min_samples_per_well=8, max_plots_per_figure=20,
-                                                 specific_logs=None, specific_labs=None):
-    """
-    Create comprehensive scatter plots for correlations that appear in multiple wells.
+#avg_r
+# def create_comprehensive_correlation_scatter_plots_from_existing(df_all, correlations_by_well_count, min_correlation, 
+#                                                  min_samples_per_well=8, max_plots_per_figure=20):
+#     """
+#     Create comprehensive scatter plots using pre-calculated correlations from common_correlations.
+#     This ensures consistency with the well counts determined during analysis.
     
-    Parameters:
-    -----------
-    df_all : DataFrame
-        Combined dataframe with all wells' data
-    correlations_by_well_count : dict
-        Dictionary of correlations organized by number of wells
-    min_correlation : float
-        Minimum absolute correlation threshold for inclusion
-    min_samples_per_well : int
-        Minimum number of samples required per well (default: 8)
-    max_plots_per_figure : int
-        Maximum number of plots to include in each summary figure
-    specific_logs : list, optional
-        List of specific log types to include (e.g., ['GR', 'PE']). If None, all logs are used.
-    specific_labs : list, optional
-        List of specific lab measurements to include. If None, all lab measurements are used.
+#     Parameters:
+#     -----------
+#     df_all : DataFrame
+#         Combined dataframe with all wells' data
+#     correlations_by_well_count : dict
+#         Dictionary of correlations organized by number of wells (from common_correlations)
+#     min_correlation : float
+#         Minimum absolute correlation threshold (for display purposes only)
+#     min_samples_per_well : int
+#         Minimum number of samples required per well (for plotting)
+#     max_plots_per_figure : int
+#         Maximum number of plots to include in each summary figure
         
-    Returns:
-    --------
-    None
-        Saves plots to imgs/scatter_plots/positive and imgs/scatter_plots/negative
-    """
+#     Returns:
+#     --------
+#     None
+#         Saves plots to imgs/scatter_by_wells/
+#     """
+#     from pathlib import Path
+#     import matplotlib.pyplot as plt
+#     import numpy as np
     
-    # Define colors for each well
+#     # Define well colors
+#     well_colors = {
+#         'HRDH_697': '#1f77b4',
+#         'HRDH_1119': '#d62728', 
+#         'HRDH_1804': '#2ca02c',
+#         'HRDH_1867': '#ff7f0e'
+#     }
+    
+#     # Create directories for plots organized by well count
+#     for n_wells in [2, 3, 4]:
+#         Path(f'imgs/scatter_by_wells/{n_wells}_wells').mkdir(parents=True, exist_ok=True)
+    
+#     # Process each well count separately
+#     for n_wells in [2, 3, 4]:
+#         if n_wells not in correlations_by_well_count or not correlations_by_well_count[n_wells]:
+#             continue
+            
+#         print(f"\nCreating scatter plots for {n_wells}-well correlations...")
+        
+#         # Get all correlations for this well count
+#         correlations = correlations_by_well_count[n_wells]
+        
+#         # Separate positive and negative
+#         positive_corrs = [(pair, wells_data, info) for pair, wells_data, info in correlations 
+#                          if info['avg_corr'] > 0]
+#         negative_corrs = [(pair, wells_data, info) for pair, wells_data, info in correlations 
+#                          if info['avg_corr'] < 0]
+        
+#         # Create summary figures for positive correlations
+#         if positive_corrs:
+#             n_plots = min(len(positive_corrs), max_plots_per_figure)
+#             n_cols = min(4, n_plots)
+#             n_rows = (n_plots + n_cols - 1) // n_cols
+            
+#             fig, axes = plt.subplots(n_rows, n_cols, figsize=(5*n_cols, 4*n_rows))
+#             if n_plots == 1:
+#                 axes = [axes]
+#             else:
+#                 axes = axes.flatten() if n_rows > 1 or n_cols > 1 else [axes]
+            
+#             fig.suptitle(f'{n_wells}-Well Positive Correlations (Top {n_plots} of {len(positive_corrs)} total)', 
+#                         fontsize=16, fontweight='bold', color='darkgreen')
+            
+#             for idx, (pair, wells_data, info) in enumerate(positive_corrs[:n_plots]):
+#                 ax = axes[idx]
+#                 log_var, lab_var = pair
+                
+#                 # Plot ONLY the wells that have this correlation
+#                 all_x = []
+#                 all_y = []
+                
+#                 for well, well_r in wells_data:
+#                     well_data = df_all[df_all['Well'] == well]
+#                     mask = (~well_data[log_var].isna()) & (~well_data[lab_var].isna())
+#                     x_data = well_data.loc[mask, log_var].values
+#                     y_data = well_data.loc[mask, lab_var].values
+                    
+#                     if len(x_data) > 0:
+#                         well_short = well.replace('HRDH_', '')
+#                         ax.scatter(x_data, y_data, 
+#                                  color=well_colors[well], 
+#                                  alpha=0.6, s=30,
+#                                  label=f'{well_short} (r={well_r:.2f})',
+#                                  edgecolors='darkgreen',
+#                                  linewidth=0.5)
+                        
+#                         all_x.extend(x_data)
+#                         all_y.extend(y_data)
+                
+#                 # Add regression line using ONLY data from the wells with this correlation
+#                 if len(all_x) > 3:
+#                     all_x = np.array(all_x)
+#                     all_y = np.array(all_y)
+#                     z = np.polyfit(all_x, all_y, 1)
+#                     p = np.poly1d(z)
+#                     x_line = np.linspace(all_x.min(), all_x.max(), 100)
+#                     ax.plot(x_line, p(x_line), 
+#                            color='darkgreen', 
+#                            linestyle='-', alpha=0.8, linewidth=2,
+#                            label=f'Avg r={info["avg_corr"]:.2f}')
+                
+#                 # Styling
+#                 ax.set_facecolor('#e8f5e9')
+#                 ax.set_xlabel(log_var.replace('Log_', ''), fontsize=10)
+#                 ax.set_ylabel(lab_var.replace('Lab_', ''), fontsize=10)
+                
+#                 # Title with ONLY the wells that have this correlation
+#                 wells_str = ', '.join([w.replace('HRDH_', '') for w, _ in wells_data])
+#                 ax.set_title(f"{log_var.replace('Log_', '')} vs {lab_var.replace('Lab_', '')}\n({wells_str})", 
+#                            fontsize=9)
+                
+#                 ax.legend(fontsize=7, loc='best')
+#                 ax.grid(True, alpha=0.3)
+            
+#             # Hide empty subplots
+#             for idx in range(n_plots, len(axes)):
+#                 axes[idx].set_visible(False)
+            
+#             plt.tight_layout()
+#             plt.savefig(f'imgs/scatter_by_wells/{n_wells}_wells/positive_{n_wells}_well_correlations.png', 
+#                        dpi=300, bbox_inches='tight')
+#             plt.show()
+        
+#         # Create summary figures for negative correlations
+#         if negative_corrs:
+#             n_plots = min(len(negative_corrs), max_plots_per_figure)
+#             n_cols = min(4, n_plots)
+#             n_rows = (n_plots + n_cols - 1) // n_cols
+            
+#             fig, axes = plt.subplots(n_rows, n_cols, figsize=(5*n_cols, 4*n_rows))
+#             if n_plots == 1:
+#                 axes = [axes]
+#             else:
+#                 axes = axes.flatten() if n_rows > 1 or n_cols > 1 else [axes]
+            
+#             fig.suptitle(f'{n_wells}-Well Negative Correlations (Top {n_plots} of {len(negative_corrs)} total)', 
+#                         fontsize=16, fontweight='bold', color='darkred')
+            
+#             for idx, (pair, wells_data, info) in enumerate(negative_corrs[:n_plots]):
+#                 ax = axes[idx]
+#                 log_var, lab_var = pair
+                
+#                 # Plot ONLY the wells that have this correlation
+#                 all_x = []
+#                 all_y = []
+                
+#                 for well, well_r in wells_data:
+#                     well_data = df_all[df_all['Well'] == well]
+#                     mask = (~well_data[log_var].isna()) & (~well_data[lab_var].isna())
+#                     x_data = well_data.loc[mask, log_var].values
+#                     y_data = well_data.loc[mask, lab_var].values
+                    
+#                     if len(x_data) > 0:
+#                         well_short = well.replace('HRDH_', '')
+#                         ax.scatter(x_data, y_data, 
+#                                  color=well_colors[well], 
+#                                  alpha=0.6, s=30,
+#                                  label=f'{well_short} (r={well_r:.2f})',
+#                                  edgecolors='darkred',
+#                                  linewidth=0.5)
+                        
+#                         all_x.extend(x_data)
+#                         all_y.extend(y_data)
+                
+#                 # Add regression line using ONLY data from the wells with this correlation
+#                 if len(all_x) > 3:
+#                     all_x = np.array(all_x)
+#                     all_y = np.array(all_y)
+#                     z = np.polyfit(all_x, all_y, 1)
+#                     p = np.poly1d(z)
+#                     x_line = np.linspace(all_x.min(), all_x.max(), 100)
+#                     ax.plot(x_line, p(x_line), 
+#                            color='darkred', 
+#                            linestyle='-', alpha=0.8, linewidth=2,
+#                            label=f'Avg r={info["avg_corr"]:.2f}')
+                
+#                 # Styling
+#                 ax.set_facecolor('#ffebee')
+#                 ax.set_xlabel(log_var.replace('Log_', ''), fontsize=10)
+#                 ax.set_ylabel(lab_var.replace('Lab_', ''), fontsize=10)
+                
+#                 # Title with ONLY the wells that have this correlation
+#                 wells_str = ', '.join([w.replace('HRDH_', '') for w, _ in wells_data])
+#                 ax.set_title(f"{log_var.replace('Log_', '')} vs {lab_var.replace('Lab_', '')}\n({wells_str})", 
+#                            fontsize=9)
+                
+#                 ax.legend(fontsize=7, loc='best')
+#                 ax.grid(True, alpha=0.3)
+            
+#             # Hide empty subplots
+#             for idx in range(n_plots, len(axes)):
+#                 axes[idx].set_visible(False)
+            
+#             plt.tight_layout()
+#             plt.savefig(f'imgs/scatter_by_wells/{n_wells}_wells/negative_{n_wells}_well_correlations.png', 
+#                        dpi=300, bbox_inches='tight')
+#             plt.show()
+    
+#     # Print summary
+#     print("\n" + "="*80)
+#     print("SCATTER PLOT GENERATION SUMMARY (FROM COMMON_CORRELATIONS)")
+#     print("="*80)
+    
+#     for n_wells in [2, 3, 4]:
+#         if n_wells in correlations_by_well_count:
+#             corrs = correlations_by_well_count[n_wells]
+#             pos_count = sum(1 for _, _, info in corrs if info['avg_corr'] > 0)
+#             neg_count = sum(1 for _, _, info in corrs if info['avg_corr'] < 0)
+#             print(f"\n{n_wells}-well correlations:")
+#             print(f"  Positive: {pos_count}")
+#             print(f"  Negative: {neg_count}")
+#             print(f"  Total: {len(corrs)}")
+
+#combined r
+def create_comprehensive_correlation_scatter_plots_from_existing(df_all, correlations_by_well_count, min_correlation, 
+                                                 min_samples_per_well=8, max_plots_per_figure=20):
+    """
+    Modified version that shows combined correlations in scatter plots
+    """
+    from pathlib import Path
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from scipy import stats
+    
+    # Define well colors
     well_colors = {
         'HRDH_697': '#1f77b4',
         'HRDH_1119': '#d62728', 
@@ -850,276 +1078,70 @@ def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_
         'HRDH_1867': '#ff7f0e'
     }
     
-    # Create directories for individual plots
-    positive_dir = Path('imgs/scatter_plots/positive')
-    negative_dir = Path('imgs/scatter_plots/negative')
-    positive_dir.mkdir(parents=True, exist_ok=True)
-    negative_dir.mkdir(parents=True, exist_ok=True)
+    # Create directories for plots organized by well count
+    for n_wells in [2, 3, 4]:
+        Path(f'imgs/scatter_by_wells/{n_wells}_wells').mkdir(parents=True, exist_ok=True)
     
-    # Function to sanitize filename
-    def sanitize_filename(name):
-        return name.replace('/', '_').replace('\\', '_').replace(':', '_')
-    
-    # Function to calculate combined correlation
-    def calculate_combined_correlation(df_all, log_var, lab_var):
-        """Calculate correlation using ALL data points pooled together"""
-        valid_data = df_all[[log_var, lab_var]].dropna()
-        if len(valid_data) >= min_samples_per_well:
-            try:
-                r, p = pearsonr(valid_data[log_var], valid_data[lab_var])
-                return r
-            except Exception as e:
-                print(f"Error calculating correlation for {log_var} vs {lab_var}: {e}")
-                return np.nan
-        return np.nan
-    
-    # Get all possible log-lab combinations
-    all_log_columns = [col for col in df_all.columns if col.startswith('Log_') and 
-                   col not in ['Log_Depth', 'Log_FRAMENO']]
-    all_lab_columns = [col for col in df_all.columns if col.startswith('Lab_') and 
-                   col not in ['Lab_Depth', 'Lab_Sample_ID']]
-    
-    # Filter log columns based on specific_logs if provided
-    if specific_logs:
-        specific_log_columns = [f'Log_{log}' for log in specific_logs if f'Log_{log}' in df_all.columns]
-        log_columns = specific_log_columns
-        print(f"Using {len(log_columns)} specific log columns for scatter plots")
-    else:
-        log_columns = all_log_columns
-        print(f"Using all {len(log_columns)} log columns for scatter plots")
-    
-    # Filter lab columns based on specific_labs if provided
-    if specific_labs:
-        specific_lab_columns = [f'Lab_{lab}' for lab in specific_labs if f'Lab_{lab}' in df_all.columns]
-        lab_columns = specific_lab_columns
-        print(f"Using {len(lab_columns)} specific lab columns for scatter plots")
-    else:
-        lab_columns = all_lab_columns
-        print(f"Using all {len(lab_columns)} lab columns for scatter plots")
-    
-    # Calculate combined correlations for ALL pairs
-    all_combined_correlations = []
-    
-    for log_var in log_columns:
-        for lab_var in lab_columns:
-            # Check which wells have sufficient data
-            wells_with_data = []
-            for well in df_all['Well'].unique():
-                well_data = df_all[df_all['Well'] == well]
-                valid_data = well_data[[log_var, lab_var]].dropna()
-                if len(valid_data) >= min_samples_per_well:
-                    try:
-                        r, _ = pearsonr(valid_data[log_var], valid_data[lab_var])
-                        wells_with_data.append((well, r))
-                    except Exception as e:
-                        print(f"Error with {well}, {log_var} vs {lab_var}: {e}")
+    # Process each well count separately
+    for n_wells in [2, 3, 4]:
+        if n_wells not in correlations_by_well_count or not correlations_by_well_count[n_wells]:
+            continue
             
-            # Only proceed if we have data from 2+ wells
-            if len(wells_with_data) >= 2:
-                # Calculate combined correlation
-                combined_r = calculate_combined_correlation(df_all, log_var, lab_var)
-                
-                # Only include if meets threshold
-                if not np.isnan(combined_r) and abs(combined_r) >= min_correlation:
-                    # Create info dictionary
-                    correlations = [r for _, r in wells_with_data]
-                    info = {
-                        'avg_corr': np.mean(correlations),
-                        'avg_abs_corr': np.mean([abs(r) for r in correlations]),
-                        'std_corr': np.std(correlations),
-                        'n_wells': len(wells_with_data),
-                        'correlation_type': 'Positive' if combined_r > 0 else 'Negative',
-                        'consistent_direction': all(r > 0 for _, r in wells_with_data) or all(r < 0 for _, r in wells_with_data),
-                        'missing_wells': [well for well in df_all['Well'].unique() if well not in [w for w, _ in wells_with_data]]
-                    }
-                    
-                    all_combined_correlations.append(((log_var, lab_var), wells_with_data, info, combined_r))
-    
-    if not all_combined_correlations:
-        print("No correlations met the criteria. Try lowering min_correlation or min_samples_per_well.")
-        return
+        print(f"\nCreating scatter plots for {n_wells}-well correlations...")
         
-    # Separate based on combined correlation sign
-    positive_correlations = [(pair, wells_data, info, combined_r) 
-                            for pair, wells_data, info, combined_r in all_combined_correlations 
-                            if combined_r > 0]
-    negative_correlations = [(pair, wells_data, info, combined_r) 
-                            for pair, wells_data, info, combined_r in all_combined_correlations 
-                            if combined_r < 0]
-    
-    # Sort by absolute combined correlation value (strongest first)
-    positive_correlations.sort(key=lambda x: abs(x[3]), reverse=True)
-    negative_correlations.sort(key=lambda x: abs(x[3]), reverse=True)
-    
-    # Remove combined_r from tuples for compatibility with rest of code
-    all_positive_corrs = [(pair, wells_data, info) for pair, wells_data, info, combined_r in positive_correlations]
-    all_negative_corrs = [(pair, wells_data, info) for pair, wells_data, info, combined_r in negative_correlations]
-    
-    print(f"\nCorrelation Classification Summary (2+ wells, |r| ≥ {min_correlation}):")
-    print(f"Positive correlations: {len(all_positive_corrs)}")
-    print(f"Negative correlations: {len(all_negative_corrs)}")
-    print(f"Total correlations meeting threshold: {len(all_positive_corrs) + len(all_negative_corrs)}")
-    
-    # Function to create individual plot
-    def create_individual_plot(pair, wells_data, info, correlation_type, save_path, combined_r):
-        """Create and save an individual scatter plot."""
-        fig, ax = plt.subplots(figsize=(8, 6))
+        # Get all correlations for this well count
+        correlations = correlations_by_well_count[n_wells]
         
-        log_var, lab_var = pair
-        all_x = []
-        all_y = []
-        
-        # Get list of wells involved (shortened names)
-        wells_involved = [well.replace('HRDH_', '') for well, _ in wells_data]
-        wells_str = ', '.join(wells_involved)
-        
-        # Colors based on correlation type
-        edge_color = 'darkgreen' if correlation_type == 'positive' else 'darkred'
-        bg_color = '#e8f5e9' if correlation_type == 'positive' else '#ffebee'
-        line_color = 'darkgreen' if correlation_type == 'positive' else 'darkred'
-        
-        # Plot data for each well
-        for well, r in wells_data:
-            well_data = df_all[df_all['Well'] == well]
-            
-            mask = (~well_data[log_var].isna()) & (~well_data[lab_var].isna())
-            x_data = well_data.loc[mask, log_var].values
-            y_data = well_data.loc[mask, lab_var].values
-            
-            if len(x_data) > 0:
-                well_short = well.replace('HRDH_', '')
-                ax.scatter(x_data, y_data, 
-                         color=well_colors[well], 
-                         alpha=0.6, 
-                         s=40,
-                         label=f'{well_short} (r={r:.2f}, n={len(x_data)})',
-                         edgecolors=edge_color,
-                         linewidth=0.5)
-                
-                # Individual well regression line
-                if len(x_data) > 1:
-                    z = np.polyfit(x_data, y_data, 1)
-                    p = np.poly1d(z)
-                    x_line = np.linspace(x_data.min(), x_data.max(), 100)
-                    ax.plot(x_line, p(x_line), color=well_colors[well], 
-                           linestyle='--', alpha=0.5, linewidth=1.5)
-                
-                all_x.extend(x_data)
-                all_y.extend(y_data)
-        
-        # Calculate combined statistics
-        if len(all_x) > 3:
-            all_x = np.array(all_x)
-            all_y = np.array(all_y)
-            
-            # Use the passed combined_r instead of recalculating
-            combined_p = stats.pearsonr(all_x, all_y)[1]
-            
-            # Calculate R-squared
-            z = np.polyfit(all_x, all_y, 1)
-            p = np.poly1d(z)
-            y_pred = p(all_x)
-            ss_res = np.sum((all_y - y_pred)**2)
-            ss_tot = np.sum((all_y - np.mean(all_y))**2)
-            r_squared = 1 - (ss_res / ss_tot)
-            
-            # Calculate 95% confidence interval
-            n = len(all_x)
-            t_val = stats.t.ppf(0.975, n-2)
-            s_yx = np.sqrt(ss_res / (n-2))
-            
-            x_line = np.linspace(all_x.min(), all_x.max(), 100)
-            y_line = p(x_line)
-            
-            x_mean = np.mean(all_x)
-            se_line = s_yx * np.sqrt(1/n + (x_line - x_mean)**2 / np.sum((all_x - x_mean)**2))
-            ci_upper = y_line + t_val * se_line
-            ci_lower = y_line - t_val * se_line
-            
-            # Plot confidence interval
-            ax.fill_between(x_line, ci_lower, ci_upper, 
-                           color=line_color, alpha=0.1, 
-                           label='95% CI')
-            
-            # Plot combined regression line
-            ax.plot(x_line, y_line, color=line_color, 
-                   linestyle='-', alpha=0.8, linewidth=3,
-                   label=f'Combined: r={combined_r:.2f}, R²={r_squared:.2f}')
-            
-            # Add statistics box
-            stats_text = f'p={combined_p:.2e}\nn={len(all_x)}\nSlope={z[0]:.3f}'
-            ax.text(0.98, 0.02, stats_text, transform=ax.transAxes,
-                   bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.9),
-                   verticalalignment='bottom', horizontalalignment='right',
-                   fontsize=10, color=line_color)
-        
-        # Styling
-        ax.set_facecolor(bg_color)
-        ax.set_xlabel(log_var.replace('Log_', ''), fontsize=13, fontweight='bold')
-        ax.set_ylabel(lab_var.replace('Lab_', ''), fontsize=13, fontweight='bold')
-        
-        # Title
-        title_line1 = f"{log_var.replace('Log_', '')} vs {lab_var.replace('Lab_', '')}"
-        title_line2 = f"Wells: {wells_str} | Combined r = {combined_r:.3f}"
-        ax.set_title(f"{title_line1}\n{title_line2}", fontsize=12, pad=10, fontweight='bold')
-        
-        # Legend
-        ax.legend(fontsize=9, loc='best', framealpha=0.95)
-        ax.grid(True, alpha=0.3, linestyle=':', linewidth=0.5)
-        
-        # Add subtle box around plot
-        for spine in ax.spines.values():
-            spine.set_edgecolor(line_color)
-            spine.set_alpha(0.4)
-            spine.set_linewidth(2)
-        
-        plt.tight_layout()
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
-        plt.close()
-    
-    # Process positive correlations
-    if all_positive_corrs:
-        n_positive = min(len(all_positive_corrs), max_plots_per_figure)
-        n_cols = min(4, n_positive) if n_positive > 1 else 1  # Changed n_plots to n_positive
-        n_rows = (n_positive + n_cols - 1) // n_cols
-        
-        fig, axes = plt.subplots(n_rows, n_cols, figsize=(5*n_cols, 4*n_rows))
-        if n_positive == 1:
-            axes = [axes]
-        else:
-            axes = axes.flatten() if n_rows > 1 or n_cols > 1 else [axes]
-        
-        fig.suptitle(f'Positive Correlations in 2+ Wells (Top {n_positive} of {len(all_positive_corrs)} total)', 
-                    fontsize=20, fontweight='bold', color='darkgreen', y=0.995)
-        
-        # Save individual positive plots
-        print(f"\nSaving {len(all_positive_corrs)} individual positive correlation plots (2+ wells)...")
-        
-        for idx, ((pair, wells_data, info), (_, _, _, combined_r)) in enumerate(zip(all_positive_corrs, positive_correlations)):
-            # Create filename with sanitized variable names
+        # Calculate combined correlations for sorting
+        combined_corrs = []
+        for pair, wells_data, info in correlations:
             log_var, lab_var = pair
-            log_name = sanitize_filename(log_var.replace('Log_', ''))
-            lab_name = sanitize_filename(lab_var.replace('Lab_', ''))
-            filename = f"{idx+1:03d}_{log_name}_vs_{lab_name}_r{abs(combined_r):.2f}.png"
-            save_path = positive_dir / filename
             
-            # Create individual plot
-            create_individual_plot(pair, wells_data, info, 'positive', save_path, combined_r)
+            # Get data only from the wells in wells_data
+            well_names = [w for w, _ in wells_data]
+            mask = df_all['Well'].isin(well_names)
+            combined_data = df_all[mask][[log_var, lab_var]].dropna()
             
-            # Also create subplot in combined figure if within limit
-            if idx < n_positive:
-                ax = axes[idx]
+            if len(combined_data) > 5:
+                combined_r, _ = stats.pearsonr(combined_data[log_var], combined_data[lab_var])
+            else:
+                combined_r = info['avg_corr']  # Fallback to average
                 
-                # Collect all data points for combined analysis
+            combined_corrs.append((pair, wells_data, info, combined_r))
+        
+        # Sort by absolute combined correlation
+        combined_corrs.sort(key=lambda x: abs(x[3]), reverse=True)
+        
+        # Separate positive and negative
+        positive_corrs = [(pair, wells_data, info, combined_r) for pair, wells_data, info, combined_r in combined_corrs 
+                         if combined_r > 0]
+        negative_corrs = [(pair, wells_data, info, combined_r) for pair, wells_data, info, combined_r in combined_corrs 
+                         if combined_r < 0]
+        
+        # Create summary figures for positive correlations
+        if positive_corrs:
+            n_plots = min(len(positive_corrs), max_plots_per_figure)
+            n_cols = min(4, n_plots)
+            n_rows = (n_plots + n_cols - 1) // n_cols
+            
+            fig, axes = plt.subplots(n_rows, n_cols, figsize=(5*n_cols, 4*n_rows))
+            if n_plots == 1:
+                axes = [axes]
+            else:
+                axes = axes.flatten() if n_rows > 1 or n_cols > 1 else [axes]
+            
+            fig.suptitle(f'{n_wells}-Well Positive Correlations (Top {n_plots} of {len(positive_corrs)} total)\nSorted by Combined Correlation Strength', 
+                        fontsize=16, fontweight='bold', color='darkgreen')
+            
+            for idx, (pair, wells_data, info, combined_r) in enumerate(positive_corrs[:n_plots]):
+                ax = axes[idx]
+                log_var, lab_var = pair
+                
+                # Plot ONLY the wells that have this correlation
                 all_x = []
                 all_y = []
                 
-                # Get list of wells involved (shortened names)
-                wells_involved = [well.replace('HRDH_', '') for well, _ in wells_data]
-                wells_str = ', '.join(wells_involved)
-                
-                # Plot data for each well with individual regression lines
-                for well, r in wells_data:
+                for well, well_r in wells_data:
                     well_data = df_all[df_all['Well'] == well]
                     mask = (~well_data[log_var].isna()) & (~well_data[lab_var].isna())
                     x_data = well_data.loc[mask, log_var].values
@@ -1129,196 +1151,47 @@ def create_comprehensive_correlation_scatter_plots(df_all, correlations_by_well_
                         well_short = well.replace('HRDH_', '')
                         ax.scatter(x_data, y_data, 
                                  color=well_colors[well], 
-                                 alpha=0.6, 
-                                 s=30,
-                                 label=f'{well_short} (r={r:.2f})',
+                                 alpha=0.6, s=30,
+                                 label=f'{well_short} (r={well_r:.2f})',
                                  edgecolors='darkgreen',
                                  linewidth=0.5)
                         
-                        # Individual well regression line
-                        if len(x_data) > 1:
-                            z = np.polyfit(x_data, y_data, 1)
-                            p = np.poly1d(z)
-                            x_line = np.linspace(x_data.min(), x_data.max(), 100)
-                            ax.plot(x_line, p(x_line), color=well_colors[well], 
-                                   linestyle='--', alpha=0.5, linewidth=1)
-                        
                         all_x.extend(x_data)
                         all_y.extend(y_data)
                 
-                # Calculate combined statistics from ALL data points
+                # Add regression line using combined data
                 if len(all_x) > 3:
                     all_x = np.array(all_x)
                     all_y = np.array(all_y)
-                    
-                    # Combined regression line
                     z = np.polyfit(all_x, all_y, 1)
                     p = np.poly1d(z)
                     x_line = np.linspace(all_x.min(), all_x.max(), 100)
-                    ax.plot(x_line, p(x_line), color='darkgreen', 
-                           linestyle='-', alpha=0.8, linewidth=2.5,
-                           label=f'Combined (r={combined_r:.2f})')
+                    ax.plot(x_line, p(x_line), 
+                           color='darkgreen', 
+                           linestyle='-', alpha=0.8, linewidth=2,
+                           label=f'Combined r={combined_r:.2f}')
                 
-                # Shade background green for positive correlation
+                # Styling
                 ax.set_facecolor('#e8f5e9')
+                ax.set_xlabel(log_var.replace('Log_', ''), fontsize=10)
+                ax.set_ylabel(lab_var.replace('Lab_', ''), fontsize=10)
                 
-                # Formatting with improved title
-                ax.set_xlabel(log_var.replace('Log_', ''), fontsize=11, fontweight='bold')
-                ax.set_ylabel(lab_var.replace('Lab_', ''), fontsize=11, fontweight='bold')
+                # Title with ONLY the wells that have this correlation
+                wells_str = ', '.join([w.replace('HRDH_', '') for w, _ in wells_data])
+                ax.set_title(f"{log_var.replace('Log_', '')} vs {lab_var.replace('Lab_', '')}\n({wells_str})", 
+                           fontsize=9)
                 
-                # Enhanced title with wells listed
-                title_line1 = f"{log_var.replace('Log_', '')} vs {lab_var.replace('Lab_', '')}"
-                title_line2 = f"Wells: {wells_str} | Combined r = {combined_r:.3f}"
-                ax.set_title(f"{title_line1}\n{title_line2}", fontsize=10, pad=8)
-                
-                # Improved legend
-                ax.legend(fontsize=7, loc='best', framealpha=0.9, 
-                         borderpad=0.3, columnspacing=0.5, handletextpad=0.3)
-                ax.grid(True, alpha=0.3, linestyle=':', linewidth=0.5)
-                
-                # Add subtle box around plot
-                for spine in ax.spines.values():
-                    spine.set_edgecolor('darkgreen')
-                    spine.set_alpha(0.3)
-                    spine.set_linewidth(1.5)
-        
-        # Hide empty subplots
-        for idx in range(n_positive, len(axes)):
-            axes[idx].set_visible(False)
-        
-        plt.tight_layout()
-        plt.savefig('imgs/scatter_all_positive_correlations_2plus_wells.png', dpi=300, bbox_inches='tight')
-        plt.show()
-        
-        print(f"Saved {len(all_positive_corrs)} positive correlation plots to: {positive_dir}")
-    
-    # Process negative correlations
-    if all_negative_corrs:
-        n_negative = min(len(all_negative_corrs), max_plots_per_figure)
-        n_cols = min(4, n_negative) if n_negative > 1 else 1  # Changed n_plots to n_negative
-        n_rows = (n_negative + n_cols - 1) // n_cols
-        
-        fig, axes = plt.subplots(n_rows, n_cols, figsize=(5*n_cols, 4*n_rows))
-        if n_negative == 1:
-            axes = [axes]
-        else:
-            axes = axes.flatten() if n_rows > 1 or n_cols > 1 else [axes]
-        
-        fig.suptitle(f'Negative Correlations in 2+ Wells (Top {n_negative} of {len(all_negative_corrs)} total)', 
-                    fontsize=20, fontweight='bold', color='darkred', y=0.995)
-        
-        # Save individual negative plots
-        print(f"\nSaving {len(all_negative_corrs)} individual negative correlation plots (2+ wells)...")
-        
-        for idx, ((pair, wells_data, info), (_, _, _, combined_r)) in enumerate(zip(all_negative_corrs, negative_correlations)):
-            # Create filename with sanitized variable names
-            log_var, lab_var = pair
-            log_name = sanitize_filename(log_var.replace('Log_', ''))
-            lab_name = sanitize_filename(lab_var.replace('Lab_', ''))
-            filename = f"{idx+1:03d}_{log_name}_vs_{lab_name}_r{abs(combined_r):.2f}.png"
-            save_path = negative_dir / filename
+                ax.legend(fontsize=7, loc='best')
+                ax.grid(True, alpha=0.3)
             
-            # Create individual plot
-            create_individual_plot(pair, wells_data, info, 'negative', save_path, combined_r)
+            # Hide empty subplots
+            for idx in range(n_plots, len(axes)):
+                axes[idx].set_visible(False)
             
-            # Also create subplot in combined figure if within limit
-            if idx < n_negative:
-                ax = axes[idx]
-                
-                # Collect all data points for combined analysis
-                all_x = []
-                all_y = []
-                
-                # Get list of wells involved (shortened names)
-                wells_involved = [well.replace('HRDH_', '') for well, _ in wells_data]
-                wells_str = ', '.join(wells_involved)
-                
-                # Plot data for each well with individual regression lines
-                for well, r in wells_data:
-                    well_data = df_all[df_all['Well'] == well]
-                    mask = (~well_data[log_var].isna()) & (~well_data[lab_var].isna())
-                    x_data = well_data.loc[mask, log_var].values
-                    y_data = well_data.loc[mask, lab_var].values
-                    
-                    if len(x_data) > 0:
-                        well_short = well.replace('HRDH_', '')
-                        ax.scatter(x_data, y_data, 
-                                 color=well_colors[well], 
-                                 alpha=0.6, 
-                                 s=30,
-                                 label=f'{well_short} (r={r:.2f})',
-                                 edgecolors='darkred',
-                                 linewidth=0.5)
-                        
-                        # Individual well regression line
-                        if len(x_data) > 1:
-                            z = np.polyfit(x_data, y_data, 1)
-                            p = np.poly1d(z)
-                            x_line = np.linspace(x_data.min(), x_data.max(), 100)
-                            ax.plot(x_line, p(x_line), color=well_colors[well], 
-                                   linestyle='--', alpha=0.5, linewidth=1)
-                        
-                        all_x.extend(x_data)
-                        all_y.extend(y_data)
-                
-                # Calculate combined statistics from ALL data points
-                if len(all_x) > 3:
-                    all_x = np.array(all_x)
-                    all_y = np.array(all_y)
-                    
-                    # Combined regression line
-                    z = np.polyfit(all_x, all_y, 1)
-                    p = np.poly1d(z)
-                    x_line = np.linspace(all_x.min(), all_x.max(), 100)
-                    ax.plot(x_line, p(x_line), color='darkred', 
-                           linestyle='-', alpha=0.8, linewidth=2.5,
-                           label=f'Combined (r={combined_r:.2f})')
-                
-                # Shade background red for negative correlation
-                ax.set_facecolor('#ffebee')
-                
-                # Formatting with improved title
-                ax.set_xlabel(log_var.replace('Log_', ''), fontsize=11, fontweight='bold')
-                ax.set_ylabel(lab_var.replace('Lab_', ''), fontsize=11, fontweight='bold')
-                
-                # Enhanced title with wells listed
-                title_line1 = f"{log_var.replace('Log_', '')} vs {lab_var.replace('Lab_', '')}"
-                title_line2 = f"Wells: {wells_str} | Combined r = {combined_r:.3f}"
-                ax.set_title(f"{title_line1}\n{title_line2}", fontsize=10, pad=8)
-                
-                # Improved legend
-                ax.legend(fontsize=7, loc='best', framealpha=0.9,
-                         borderpad=0.3, columnspacing=0.5, handletextpad=0.3)
-                ax.grid(True, alpha=0.3, linestyle=':', linewidth=0.5)
-                
-                # Add subtle box around plot
-                for spine in ax.spines.values():
-                    spine.set_edgecolor('darkred')
-                    spine.set_alpha(0.3)
-                    spine.set_linewidth(1.5)
-        
-        # Hide empty subplots
-        for idx in range(n_negative, len(axes)):
-            axes[idx].set_visible(False)
-        
-        plt.tight_layout()
-        plt.savefig('imgs/scatter_all_negative_correlations_2plus_wells.png', dpi=300, bbox_inches='tight')
-        plt.show()
-        
-        print(f"Saved {len(all_negative_corrs)} negative correlation plots to: {negative_dir}")
-    
-    # Create summary statistics
-    print("\n" + "="*80)
-    print(f"SCATTER PLOT GENERATION SUMMARY (2+ WELLS, {min_samples_per_well}+ SAMPLES/WELL)")
-    print("="*80)
-    
-    print("\nINDIVIDUAL PLOTS SAVED:")
-    print("-" * 60)
-    print(f"Positive correlations: imgs/scatter_plots/positive/")
-    print(f"   - {len(all_positive_corrs)} plots saved")
-    print(f"Negative correlations: imgs/scatter_plots/negative/")
-    print(f"   - {len(all_negative_corrs)} plots saved")
-
+            plt.tight_layout()
+            plt.savefig(f'imgs/scatter_by_wells/{n_wells}_wells/positive_{n_wells}_well_correlations.png', 
+                       dpi=300, bbox_inches='tight')
+            plt.show()
 #pair plot
 def create_advanced_well_pairplots_by_group(df_all, variable_groups, min_samples_per_well=5, sample_size=1000):
     """
