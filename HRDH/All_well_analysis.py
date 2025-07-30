@@ -137,7 +137,7 @@ def calculate_well_correlations(df_all, min_samples=10):
     log_columns = [col for col in df_all.columns if col.startswith('Log_') and 
                   col not in ['Log_Depth', 'Log_FRAMENO']]
     
-    print(f"Found {len(lab_columns)} lab variables and {len(log_columns)} log variables")
+    print(f"Found {len(lab_columns)} lab variables and {len(log_columns)} log variables\n")
     
     well_correlations = {}
     well_stats = {}
