@@ -1647,125 +1647,155 @@ def create_comprehensive_correlation_scatter_plots_from_existing(
             print(f"  Created {idx+1}/{len(all_negative_correlations)} negative plots...")
 
     # Create comprehensive positive correlations summary
+    # Create comprehensive positive correlations summary
     if all_positive_correlations:
         print("\nCreating comprehensive positive correlations summary...")
         n_plots = min(len(all_positive_correlations), max_plots_per_figure)
         n_cols = 5
         n_rows = (n_plots + n_cols - 1) // n_cols
-
+    
         fig = plt.figure(figsize=(25, 5*n_rows))
         fig.suptitle(f'All Positive Correlations Summary (Top {n_plots} of {len(all_positive_correlations)} total)\n' +
                     'Sorted by Correlation Strength', fontsize=20, fontweight='bold', color='darkgreen')
-
+    
         for idx, (pair, wells_data, info, combined_r, n_points, n_wells) in enumerate(all_positive_correlations[:n_plots]):
             ax = plt.subplot(n_rows, n_cols, idx+1)
             log_var, lab_var = pair
-
-            # Plot data with well colors
+    
+            # Plot data with well colors AND labels (matching individual plots)
             all_x = []
             all_y = []
-
+    
             for well, well_r in wells_data:
                 well_data = df_all[df_all['Well'] == well]
                 mask = (~well_data[log_var].isna()) & (~well_data[lab_var].isna())
                 x_data = well_data.loc[mask, log_var].values
                 y_data = well_data.loc[mask, lab_var].values
-
+    
                 if len(x_data) > 0:
+                    well_short = well.replace('HRDH_', '')
                     ax.scatter(x_data, y_data,
                              color=well_colors.get(well, '#666666'),
                              alpha=0.6, s=20,
-                             label=well.replace('HRDH_', ''),
+                             label=f'{well_short} (r={well_r:.2f})',  # Added correlation value
                              edgecolors='darkgreen',
                              linewidth=0.3)
                     all_x.extend(x_data)
                     all_y.extend(y_data)
-
-            # Add regression line
+    
+            # Add regression line with confidence interval (matching individual plots)
             if len(all_x) > 3:
                 all_x = np.array(all_x)
                 all_y = np.array(all_y)
+                
+                # Regression line
                 z = np.polyfit(all_x, all_y, 1)
                 p = np.poly1d(z)
                 x_line = np.linspace(all_x.min(), all_x.max(), 100)
-                ax.plot(x_line, p(x_line), 'darkgreen', linewidth=2, alpha=0.8)
-
-            # Styling
+                y_line = p(x_line)
+                
+                ax.plot(x_line, y_line, 
+                       color='darkgreen', 
+                       linestyle='-', alpha=0.8, linewidth=2,
+                       label=f'Combined r={combined_r:.3f}')
+                
+                # Add confidence interval
+                sns.regplot(x=all_x, y=all_y, ax=ax,
+                           scatter=False,
+                           color='darkgreen',
+                           line_kws={'linewidth': 0},
+                           ci=95)
+    
+            # Styling (matching individual plots)
             ax.set_facecolor('#e8f5e9')
             wells_str = ', '.join([w.replace('HRDH_', '') for w, _ in wells_data])
             ax.set_title(f"#{idx+1}: {log_var.replace('Log_', '')} vs {lab_var.replace('Lab_', '')}\n" +
-                        f"r={combined_r:.3f} ({n_wells}w: {wells_str})", fontsize=9)
-            ax.set_xlabel(log_var.replace('Log_', ''), fontsize=8)
-            ax.set_ylabel(lab_var.replace('Lab_', ''), fontsize=8)
+                        f"Wells: {wells_str} | n={n_points} | {n_wells}-well correlation", 
+                        fontsize=9, fontweight='bold')
+            ax.set_xlabel(log_var.replace('Log_', ''), fontsize=8, fontweight='bold')
+            ax.set_ylabel(lab_var.replace('Lab_', ''), fontsize=8, fontweight='bold')
             ax.grid(True, alpha=0.3)
-
-        # Add legend to the first subplot
-        if n_plots > 0:
-            axes = fig.get_axes()
-            axes[0].legend(fontsize=8, loc='best')
-
+            
+            # Add legend to each subplot (but make it smaller)
+            ax.legend(fontsize=6, loc='best')
+    
         plt.tight_layout()
         plt.savefig('imgs/positive_correlations_summary.png', dpi=300, bbox_inches='tight')
         plt.show()
 
+    # Create comprehensive negative correlations summary
     # Create comprehensive negative correlations summary
     if all_negative_correlations:
         print("\nCreating comprehensive negative correlations summary...")
         n_plots = min(len(all_negative_correlations), max_plots_per_figure)
         n_cols = 5
         n_rows = (n_plots + n_cols - 1) // n_cols
-
+    
         fig = plt.figure(figsize=(25, 5*n_rows))
         fig.suptitle(f'All Negative Correlations Summary (Top {n_plots} of {len(all_negative_correlations)} total)\n' +
                     'Sorted by Correlation Strength', fontsize=20, fontweight='bold', color='darkred')
-
+    
         for idx, (pair, wells_data, info, combined_r, n_points, n_wells) in enumerate(all_negative_correlations[:n_plots]):
             ax = plt.subplot(n_rows, n_cols, idx+1)
             log_var, lab_var = pair
-
-            # Plot data with well colors
+    
+            # Plot data with well colors AND labels (matching individual plots)
             all_x = []
             all_y = []
-
+    
             for well, well_r in wells_data:
                 well_data = df_all[df_all['Well'] == well]
                 mask = (~well_data[log_var].isna()) & (~well_data[lab_var].isna())
                 x_data = well_data.loc[mask, log_var].values
                 y_data = well_data.loc[mask, lab_var].values
-
+    
                 if len(x_data) > 0:
+                    well_short = well.replace('HRDH_', '')
                     ax.scatter(x_data, y_data,
                              color=well_colors.get(well, '#666666'),
                              alpha=0.6, s=20,
-                             label=well.replace('HRDH_', ''),
+                             label=f'{well_short} (r={well_r:.2f})',  # Added correlation value
                              edgecolors='darkred',
                              linewidth=0.3)
                     all_x.extend(x_data)
                     all_y.extend(y_data)
-
-            # Add regression line
+    
+            # Add regression line with confidence interval (matching individual plots)
             if len(all_x) > 3:
                 all_x = np.array(all_x)
                 all_y = np.array(all_y)
+                
+                # Regression line
                 z = np.polyfit(all_x, all_y, 1)
                 p = np.poly1d(z)
                 x_line = np.linspace(all_x.min(), all_x.max(), 100)
-                ax.plot(x_line, p(x_line), 'darkred', linewidth=2, alpha=0.8)
-
-            # Styling
+                y_line = p(x_line)
+                
+                ax.plot(x_line, y_line, 
+                       color='darkred', 
+                       linestyle='-', alpha=0.8, linewidth=2,
+                       label=f'Combined r={combined_r:.3f}')
+                
+                # Add confidence interval
+                sns.regplot(x=all_x, y=all_y, ax=ax,
+                           scatter=False,
+                           color='darkred',
+                           line_kws={'linewidth': 0},
+                           ci=95)
+    
+            # Styling (matching individual plots)
             ax.set_facecolor('#ffebee')
             wells_str = ', '.join([w.replace('HRDH_', '') for w, _ in wells_data])
             ax.set_title(f"#{idx+1}: {log_var.replace('Log_', '')} vs {lab_var.replace('Lab_', '')}\n" +
-                        f"r={combined_r:.3f} ({n_wells}w: {wells_str})", fontsize=9)
-            ax.set_xlabel(log_var.replace('Log_', ''), fontsize=8)
-            ax.set_ylabel(lab_var.replace('Lab_', ''), fontsize=8)
+                        f"Wells: {wells_str} | n={n_points} | {n_wells}-well correlation", 
+                        fontsize=9, fontweight='bold')
+            ax.set_xlabel(log_var.replace('Log_', ''), fontsize=8, fontweight='bold')
+            ax.set_ylabel(lab_var.replace('Lab_', ''), fontsize=8, fontweight='bold')
             ax.grid(True, alpha=0.3)
-
-        # Add legend to the first subplot
-        if n_plots > 0:
-            axes = fig.get_axes()
-            axes[0].legend(fontsize=8, loc='best')
-
+            
+            # Add legend to each subplot (but make it smaller)
+            ax.legend(fontsize=6, loc='best')
+    
         plt.tight_layout()
         plt.savefig('imgs/negative_correlations_summary.png', dpi=300, bbox_inches='tight')
         plt.show()
