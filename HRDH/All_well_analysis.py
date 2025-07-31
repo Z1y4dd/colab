@@ -389,7 +389,7 @@ def analyze_wells(base_path=".", corr_threshold=0.5, min_samples=10, min_wells=2
             lab_name = row['lab_var'].replace('Lab_', '')
             wells = [w.replace('HRDH_', '') for w in row['wells_found_in']]
             
-            print(f"  {i}. {log_name} vs {lab_name}: r̄={row['avg_r']:.3f} ({row['num_wells']} wells: {', '.join(wells)})")
+            print(f"  {i}. {log_name} vs {lab_name}: |r̄|={row['avg_abs_r']:.3f} (avg r={row['avg_r']:.3f}, std r={row['std_r']:.3f}) in {row['num_wells']} wells: {', '.join(wells)})")
     
     return df_all, well_correlations, well_stats, common_correlations
 

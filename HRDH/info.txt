@@ -65,65 +65,65 @@ Log Range: 14305.0 - 15820.0 ft
 
 ============================================================
 
-📋 CHANNEL DESCRIPTIONS:
+DSL CHANNEL DESCRIPTIONS:
 ========================================
-   • TDEP       | 0.250000 ft frame 0 depth      | Units: ft
-   • BIT        | Bit size                       | Units: in
-   • BVOL       | Borehole volume                | Units: ft3
+   • TDEP       | 0.250000 ft frame 0 depth                 | Units: ft
+   • BIT        | Bit size                                  | Units: in
+   • BVOL       | Borehole volume                           | Units: ft3
 
-   • CAL        | Caliper                        | Units: in
-   • CALZ       | Units: in | Dim: [1]
-   • CHT        | Cable head tension             | Units: lbf
-   • CN         | Compensated neutron porosity   | Units: pu *
+   • CAL        | Caliper                                   | Units: in
+   • CALZ       | Units: in | Dim: [1]            
+   • CHT        | Cable head tension                        | Units: lbf
+   • CN         | Compensated neutron porosity              | Units: pu *
    • CNC        | Borehole size (corrected compensated neutron porosity) | Units: pu *
-   • CVOL       | Cement volume                  | Units: ft3
+   • CVOL       | Cement volume                             | Units: ft3
 
-   • GR         | Gamma ray                      | Units: gAPI *
-   • GRSL       | Gamma ray from 1329 spectrum   | Units: gAPI *
+   • GR         | Gamma ray                                 | Units: gAPI *
+   • GRSL       | Gamma ray from 1329 spectrum              | Units: gAPI *
    • GRSLC      | Gamma Ray Spectral (total spectral gamma ray)
 
-   • KC         | Potassium Concentration
+   • KC         | Potassium Concentration *
    • KTHC       | Potassium-Thorium ratio
    • RTHKC      | Thorium to Potassium ratio
    • RTHUC      | Thorium to Uranium ratio
    • RUKC       | Uranium to Potassium ratio
    • THC        | Thorium Concentration
-   • U          | Uranium content                | Units: ppm
+   • U          | Uranium content                             | Units: ppm
    • UC         | Uranium Concentration
-   • K          | Potassium content              | Units: %    *
-   • KTH        | Stripped potassium-thorium     | Units: gAPI *
-   • RTHK       | Ratio of thorium to potassium  | Units: 
-   • RTHU       | Ratio of thorium to uranium    | Units: 
-   • RUK        | Ratio of uranium to potassium  | Units: 
+   • K          | Potassium content                           | Units: %    *
+   • KTH        | Stripped potassium-thorium                  | Units: gAPI *
+   • RTHK       | Ratio of thorium to potassium               | Units: 
+   • RTHU       | Ratio of thorium to uranium                 | Units: 
+   • RUK        | Ratio of uranium to potassium               | Units: 
 
 
    • HRD1       | Long space spectrum count rate 140-200 keV | Units: *
    • HRD2       | Long space spectrum count rate 200-540 keV | Units: * 
 
 
-   • LSN        | Long space neutron             | Units: 1/s *
-   • PE         | Photo electric cross-section   | Units: b/e *
-   • QPKS       | Number of peaks found          | Units: *
+   • LSN        | Long space neutron                          | Units: 1/s *
+   • PE         | Photo electric cross-section                | Units: b/e *
+   • QPKS       | Number of peaks found                       | Units: *
 
-   • SFT2       | Long space spectrum count rate 100-140 keV | Units:* 
-   • SHR        | Soft to hard count rate ratio (SOFT/HRD2) | Units: *
+   • SFT2       | Long space spectrum count rate 100-140 keV  | Units:* 
+   • SHR        | Soft to hard count rate ratio (SOFT/HRD2)   | Units: *
    • SLGN       | Gain value                     | Units: 
-   • SLSP       | SL spectrum channels 1-254 (subset 0) | Units: 1/s
-   • SLSPQ0     | SL spectrum channels 1-254 (subset 0) | Units: 
-   • SLTM       | Delta elapsed time             | Units: ms         *
-   • SPD        | Speed                          | Units: ft/min
-   • SSD        | Short space count rate         | Units: 
-   • SSN        | Short space count rate         | Units: 1/s
-   
-   • TEN        | Differential tension           | Units: lbf
-   • TH         | Thorium concentration          | Units: ppm
-   • TTEN       | Total tension                  | Units: lbf
-   • WTBH       | Temperature of borehole        | Units: degF
-   • ZCOR       | Density correction             | Units: g/cm3
-   • ZDEN       | Formation bulk density         | Units: g/cm3
+   • SLSP       | SL spectrum channels 1-254 (subset 0)       | Units: 1/s
+   • SLSPQ0     | SL spectrum channels 1-254 (subset 0)       | Units: 
+   • SLTM       | Delta elapsed time                          | Units: ms         *
+   • SPD        | Speed                                       | Units: ft/min
+   • SSD        | Short space count rate                      | Units: 
+   • SSN        | Short space count rate                      | Units: 1/s
+
+   • TEN        | Differential tension                        | Units: lbf
+   • TH         | Thorium concentration                       | Units: ppm
+   • TTEN       | Total tension                               | Units: lbf
+   • WTBH       | Temperature of borehole                     | Units: degF
+   • ZCOR       | Density correction                          | Units: g/cm3
+   • ZDEN       | Formation bulk density                      | Units: g/cm3
    • ZDNC       | Borehole size/mud weight corrected density | Units: g/cm3 *
 
-
+FLEX:
     4. GLIT            | General lithology              | Dim: [1] | Units: 
     5. GRSLC           | Gamma ray from 1329 spectrum, borehole corrected | Dim: [1] | Units: GAPI
     6. GRDENMIN        | Grain density                  | Dim: [1] | Units: g/cc
@@ -191,7 +191,7 @@ Lab_XRF_Ba  - Barium (Ba)
   - Used in barite for drilling fluids; indirectly important for geothermal, CCS, and oil/gas support in energy transition.
 
 -------------------------------------
- Not Considered Transition Minerals
+  Minerals
 -------------------------------------
 
 Lab_XRF_Na  - Sodium (Na)
@@ -241,6 +241,7 @@ Key Differences:
 3. Variance Handling
 
 Visual Example:
+
 Imagine you have:
 
 Well 1: 100 data points, r = 0.8
