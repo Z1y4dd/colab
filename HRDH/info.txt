@@ -1,5 +1,5 @@
 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
-
+GEMINI_API_KEY=AIzaSyCnmymHB5I0LnCGL2oiZL2JJFzkQ3H-fBA
 HRDH-697 (dsl dlis)
 lab 
 14889.2 - 14938.5
